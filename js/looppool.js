@@ -11,7 +11,8 @@ var LoopGame = (function() {
 
     /**********
      * config */
-    var DIMS = [720, 405];
+    var DIMS = [720, 405]; //canvas dimensions
+    var ECC = 0.43; //eccentricity
 
     /*************
      * constants */
@@ -31,7 +32,19 @@ var LoopGame = (function() {
 
         //event listeners
 
-        Crush.clear(ctx, 'red');
+        //draw the board
+        Crush.clear(ctx, 'white');
+        drawLoopTable();
+    }
+
+    function drawLoopTable() {
+        var minAxis = DIMS[1]/2 - 2;
+        var focusLength = minAxis/Math.sqrt(Math.pow(ECC, -2)-1);
+        var majAxis = Math.sqrt(minAxis*minAxis + focusLength*focusLength);
+        Crush.outlineEllipse(
+            ctx, [DIMS[0]/2, DIMS[1]/2], focusLength,
+            majAxis, 3, 'blue'
+        );
     }
 
     /***********

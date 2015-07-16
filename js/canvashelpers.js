@@ -26,7 +26,29 @@ var Crush = (function() {
 
             return ret;
         },
-        drawTriangle: function(ctx, pts, color) {
+        outlineEllipse: function(
+            ctx, center, focusDist, majAxis, thickness, color, dir
+        ) {
+            color = color || 'red';
+            dir = dir || 0; //0 means x is the long dimension
+
+            var x = center[0];
+            var y = center[1];
+            var rx = majAxis;
+            var ry = Math.sqrt(majAxis*majAxis - focusDist*focusDist);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0)';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = thickness;
+            ctx.beginPath();
+            if (dir === 0) {
+                ctx.ellipse(x, y, rx, ry, 0, 0, 2*Math.PI);
+            } else {
+                ctx.ellipse(x, y, ry, rx, 0, 0, 2*Math.PI);
+            }
+            ctx.fill();
+            ctx.stroke();
+        },
+        fillTriangle: function(ctx, pts, color) {
             var triangle = new Path2D();
             triangle.moveTo.apply(triangle, pts[0]);
             triangle.lineTo.apply(triangle, pts[1]);
