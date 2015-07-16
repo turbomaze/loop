@@ -26,7 +26,7 @@ var Crush = (function() {
 
             return ret;
         },
-        outlineEllipse: function(
+        fillEllipse: function(
             ctx, center, focusDist, majAxis, thickness, color, dir
         ) {
             color = color || 'red';
@@ -36,7 +36,7 @@ var Crush = (function() {
             var y = center[1];
             var rx = majAxis;
             var ry = Math.sqrt(majAxis*majAxis - focusDist*focusDist);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0)';
+            ctx.fillStyle = color;
             ctx.strokeStyle = color;
             ctx.lineWidth = thickness;
             ctx.beginPath();
