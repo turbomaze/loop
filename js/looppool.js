@@ -27,6 +27,7 @@ var LoopGame = (function() {
      * working variables */
     var canvas, ctx;
     var balls;
+    var currentlyShooting, mouseDownLoc, currMouseLoc;
 
     /******************
      * work functions */
@@ -43,12 +44,25 @@ var LoopGame = (function() {
             new BilliardBall([10, 40], '#DF2F3F'),
             new BilliardBall([0, -60], 'black')
         ];
-        balls[0].vel = [2, -0.25];
-        balls[1].vel = [1.2, 0.5];
-        balls[2].vel = [-2.5, -0.1];
-        balls[3].vel = [0.1, 1.4];
+
+        currentlyShooting = false;
+        mouseDownLoc = [], currMouseLoc = [];
 
         //event listeners
+        canvas.addEventListener('mousedown', function(e) {
+            currentlyShooting = true;
+            mouseDownLoc = getMousePos(e);
+        });
+        canvas.addEventListener('mousemove', function(e) {
+            currMouseLoc = getMousePos(e);
+        });
+        canvas.addEventListener('mouseup', function(e) {
+            currentlyShooting = false;
+            balls[0].vel = [
+                (currMouseLoc[0] - mouseDownLoc[0])/60,
+                (currMouseLoc[1] - mouseDownLoc[1])/60
+            ];
+        });
 
         //draw the board
         requestAnimationFrame(render);
@@ -56,7 +70,7 @@ var LoopGame = (function() {
 
     function render() {
         //draw the table
-        Crush.clear(ctx, 'white');
+        Crush.clear(ctx, '#EFEFEF');
         drawLoopTable();
 
         //draw all the balls
@@ -67,26 +81,17 @@ var LoopGame = (function() {
             );
         });
 
-        //update their positions
+        //simulate friction
         balls.map(function(ball, ballIdx) {
-            //simulate friction
             ball.vel = ball.vel.map(function(coord) {
                 return 1*coord;
             });
+        });
 
+        //update their positions and check for wall collisions
+        balls.map(function(ball, ballIdx) {
             //appy velocity
-            balls.map(function(ball) {
-                ball.move();
-            });
-
-            //collisions with other balls
-            for (var bi = 0; bi < balls.length; bi++) {
-                for (var li = bi+1; li < balls.length; li++) {
-                    if (balls[bi].isHitting(balls[li])) {
-                        balls[bi].collideWith(balls[li]);
-                    }
-                }
-            }
+            ball.move();
 
             //bound
             var distToWall = ball.getDistToWall();
@@ -117,6 +122,20 @@ var LoopGame = (function() {
                 ball.vel = newVel;
             }
         });
+
+        //collisions with other balls
+        for (var bi = 0; bi < balls.length; bi++) {
+            for (var li = bi+1; li < balls.length; li++) {
+                if (balls[bi].isHitting(balls[li])) {
+                    balls[bi].collideWith(balls[li]);
+                }
+            }
+        }
+
+        //draw the arrow
+        if (currentlyShooting) {
+            Crush.drawArrow(ctx, mouseDownLoc, currMouseLoc, 'white');
+        }
 
         requestAnimationFrame(render);
     }
@@ -204,6 +223,10 @@ var LoopGame = (function() {
 
     /********************
      * helper functions */
+    function getMousePos(e) {
+        var rect = canvas.getBoundingClientRect();
+        return [e.clientX-rect.left, e.clientY-rect.top];
+    }
     function scalarTimes(s, a) {
         return a.map(function(comp) {
             return s*comp;
