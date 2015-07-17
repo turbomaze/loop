@@ -22,6 +22,7 @@ var LoopGame = (function() {
     var MIN_AXIS = CENTER[1] - 2; //minor axis of the board
     var FOCUS_LEN = MIN_AXIS/Math.sqrt(Math.pow(ECCENTRICITY, -2)-1);
     var MAJ_AXIS = Math.sqrt(MIN_AXIS*MIN_AXIS + FOCUS_LEN*FOCUS_LEN);
+    var PHI = 0.5+0.5*Math.sqrt(5);
 
     /*********************
      * working variables */
@@ -51,8 +52,13 @@ var LoopGame = (function() {
         //event listeners
         canvas.addEventListener('mousedown', function(e) {
             e.preventDefault();
-            currentlyShooting = true;
-            mouseDownLoc = getMousePos(e);
+            if (balls[0].getDistFrom([
+                currMouseLoc[0] - CENTER[0],
+                currMouseLoc[1] - CENTER[1]
+            ]) < PHI*balls[0].r) {
+                currentlyShooting = true;
+                mouseDownLoc = getMousePos(e);
+            }
         }, false);
         canvas.addEventListener('mousemove', function(e) {
             e.preventDefault();
@@ -60,12 +66,17 @@ var LoopGame = (function() {
         }, false);
         canvas.addEventListener('mouseup', function(e) {
             e.preventDefault();
-            currentlyShooting = false;
-            balls[0].vel = [
-                (currMouseLoc[0] - mouseDownLoc[0])/50,
-                (currMouseLoc[1] - mouseDownLoc[1])/50
-            ];
+            if (currentlyShooting) {
+                currentlyShooting = false;
+                balls[0].vel = [
+                    (currMouseLoc[0] - balls[0].pos[0] - CENTER[0])/50,
+                    (currMouseLoc[1] - balls[0].pos[1] - CENTER[1])/50
+                ];
+            }
         }, false);
+        canvas.addEventListener('mouseout', function(e) {
+            currentlyShooting = false;
+        });
 
         //draw the board
         requestAnimationFrame(render);
@@ -75,6 +86,16 @@ var LoopGame = (function() {
         //draw the table
         Crush.clear(ctx, '#EFEFEF');
         drawLoopTable();
+
+        //finger cursor
+        if (balls[0].getDistFrom([
+            currMouseLoc[0] - CENTER[0],
+            currMouseLoc[1] - CENTER[1]
+        ]) < PHI*balls[0].r) {
+            canvas.style.cursor = 'pointer';
+        } else {
+            canvas.style.cursor = 'inherit';
+        }
 
         //draw all the balls
         balls.map(function(ball) {
@@ -137,7 +158,10 @@ var LoopGame = (function() {
 
         //draw the arrow
         if (currentlyShooting) {
-            Crush.drawArrow(ctx, mouseDownLoc, currMouseLoc, 'white');
+            Crush.drawArrow(ctx, [
+                balls[0].pos[0] + CENTER[0],
+                balls[0].pos[1] + CENTER[1]
+            ], currMouseLoc, 'white');
         }
 
         requestAnimationFrame(render);
@@ -169,12 +193,15 @@ var LoopGame = (function() {
                 this.pos[1] + this.vel[1]
             ];
         };
+        this.getDistFrom = function(pt) {
+            return Math.sqrt(
+                Math.pow(this.pos[0] - pt[0], 2) +
+                Math.pow(this.pos[1] - pt[1], 2)
+            );
+        };
         this.getDistFromCenter = function() {
             //returns the distance from this ball to the center of the table
-            return Math.sqrt(
-                Math.pow(this.pos[0], 2) +
-                Math.pow(this.pos[1], 2)
-            );
+            return this.getDistFrom([0, 0]);
         };
         this.getDistToWall = function(afafs) {
             //returns the distance from the ball to the side of the loop table
@@ -187,11 +214,7 @@ var LoopGame = (function() {
             return Math.sqrt(x*x + y*y) - this.getDistFromCenter();
         };
         this.isHitting = function(b) {
-            var dist = Math.sqrt(
-                Math.pow(this.pos[0] - b.pos[0], 2) +
-                Math.pow(this.pos[1] - b.pos[1], 2)
-            );
-            return dist < 2*BALL_RAD;
+            return this.getDistFrom(b.pos) < 2*BALL_RAD;
         };
         this.collideWith = function(b) {
             var normSlope = (this.pos[1]-b.pos[1])/(this.pos[0]-b.pos[0]);
