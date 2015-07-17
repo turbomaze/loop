@@ -38,15 +38,15 @@ var LoopGame = (function() {
         ctx = canvas.getContext('2d');
 
         balls = [
-            new BilliardBall([0, 0], 'white'),
+            new BilliardBall([-50, 15], 'white'),
             new BilliardBall([70, 90], 'orange'),
             new BilliardBall([10, 40], '#DF2F3F'),
-            new BilliardBall([-40, -30], 'black')
+            new BilliardBall([0, -60], 'black')
         ];
-        balls[0].vel = [4, 1];
-        balls[1].vel = [-3.5, -1.9];
-        balls[2].vel = [-5, -0.1];
-        balls[3].vel = [0.2, 2.8];
+        balls[0].vel = [2, -0.25];
+        balls[1].vel = [1.2, 0.5];
+        balls[2].vel = [-2.5, -0.1];
+        balls[3].vel = [0.1, 1.4];
 
         //event listeners
 
@@ -75,17 +75,27 @@ var LoopGame = (function() {
             });
 
             //appy velocity
-            ball.pos = ball.pos.map(function(coord, idx) {
-                return coord += balls[ballIdx].vel[idx];
+            balls.map(function(ball) {
+                ball.move();
             });
+
+            //collisions with other balls
+            for (var bi = 0; bi < balls.length; bi++) {
+                for (var li = bi+1; li < balls.length; li++) {
+                    if (balls[bi].isHitting(balls[li])) {
+                        balls[bi].collideWith(balls[li]);
+                    }
+                }
+            }
 
             //bound
             var distToWall = ball.getDistToWall();
+            var distToCenter = -1;
             var wallCollision = false;
             if (distToWall < ball.r) {
-                var distToCenter = ball.getDistFromCenter();
+                distToCenter = ball.getDistFromCenter();
                 var change = distToCenter + distToWall - ball.r;
-                change /= distToCenter + ball.r;
+                change /= distToCenter;
                 ball.pos = [change*ball.pos[0], change*ball.pos[1]];
                 wallCollision = true;
             }
@@ -98,8 +108,7 @@ var LoopGame = (function() {
                 var x = collPt[0], y = collPt[1]; //ugh destructured asmts pls
                 var dydx = -x*Math.pow(MIN_AXIS, 2);
                 dydx /= y*Math.pow(MAJ_AXIS, 2);
-                var normSlope = -1/dydx;
-                var normVec = normalize([1, normSlope]);
+                var normVec = normalize([1, -1/dydx]);
                 var newVel = vecSub(ball.vel, scalarTimes(
                     2*dot(ball.vel, normVec),
                     normVec
@@ -132,6 +141,12 @@ var LoopGame = (function() {
         this.r = BALL_RAD; //don't let this vary, this game isn't that complex
         this.vel = [0, 0]; //no velocity
 
+        this.move = function() {
+            this.pos = [
+                this.pos[0] + this.vel[0],
+                this.pos[1] + this.vel[1]
+            ];
+        };
         this.getDistFromCenter = function() {
             //returns the distance from this ball to the center of the table
             return Math.sqrt(
@@ -149,6 +164,42 @@ var LoopGame = (function() {
             var y = rad_*Math.sin(theta);
             return Math.sqrt(x*x + y*y) - this.getDistFromCenter();
         };
+        this.isHitting = function(b) {
+            var dist = Math.sqrt(
+                Math.pow(this.pos[0] - b.pos[0], 2) +
+                Math.pow(this.pos[1] - b.pos[1], 2)
+            );
+            return dist < 2*BALL_RAD;
+        };
+        this.collideWith = function(b) {
+            var normSlope = (this.pos[1]-b.pos[1])/(this.pos[0]-b.pos[0]);
+            var perpVec = normalize([1, normSlope]);
+            var parallelVec = normalize([-normSlope, 1]);
+            var newVel1 = vecAdd(
+                b.vel,
+                scalarTimes(
+                    dot(parallelVec, vecSub(this.vel, b.vel)),
+                    parallelVec
+                )
+            );
+            var newVel2 = vecAdd(
+                b.vel,
+                scalarTimes(
+                    dot(perpVec, vecSub(this.vel, b.vel)),
+                    perpVec
+                )
+            );
+            this.vel = newVel1;
+            b.vel = newVel2;
+
+            var overlap = 2 + 2*BALL_RAD - Math.sqrt(
+                Math.pow(this.pos[0] - b.pos[0], 2) +
+                Math.pow(this.pos[1] - b.pos[1], 2)
+            );
+            var offsetVec = scalarTimes(overlap/2, parallelVec);
+            this.pos = vecAdd(this.pos, offsetVec);
+            b.pos = vecSub(b.pos, offsetVec);
+        };
     }
 
     /********************
@@ -156,6 +207,11 @@ var LoopGame = (function() {
     function scalarTimes(s, a) {
         return a.map(function(comp) {
             return s*comp;
+        });
+    }
+    function vecAdd(a, b) {
+        return a.map(function(comp, idx) {
+            return comp + b[idx];
         });
     }
     function vecSub(a, b) {
