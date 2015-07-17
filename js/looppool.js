@@ -3,7 +3,7 @@
 | @author Anthony  |
 | @version 0.2     |
 | @date 2015/07/16 |
-| @edit 2015/07/16 |
+| @edit 2015/07/17 |
 \******************/
 
 var LoopGame = (function() {
@@ -50,19 +50,22 @@ var LoopGame = (function() {
 
         //event listeners
         canvas.addEventListener('mousedown', function(e) {
+            e.preventDefault();
             currentlyShooting = true;
             mouseDownLoc = getMousePos(e);
-        });
+        }, false);
         canvas.addEventListener('mousemove', function(e) {
+            e.preventDefault();
             currMouseLoc = getMousePos(e);
-        });
+        }, false);
         canvas.addEventListener('mouseup', function(e) {
+            e.preventDefault();
             currentlyShooting = false;
             balls[0].vel = [
-                (currMouseLoc[0] - mouseDownLoc[0])/60,
-                (currMouseLoc[1] - mouseDownLoc[1])/60
+                (currMouseLoc[0] - mouseDownLoc[0])/50,
+                (currMouseLoc[1] - mouseDownLoc[1])/50
             ];
-        });
+        }, false);
 
         //draw the board
         requestAnimationFrame(render);
