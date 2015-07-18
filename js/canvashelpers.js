@@ -62,6 +62,46 @@ var Crush = (function() {
             ctx.arc(pos[0], pos[1], r, 0, 2*Math.PI, true);
             ctx.closePath();
             ctx.fill();
+        },
+        drawArrow: function(ctx, start, end, color) {
+            //housekeeping
+            color = color || 'rgba(140, 255, 255, 1)';
+            var wingAngle = Math.PI/8; //in radians
+            var wingLen = 20; //in pixels
+            //arrow's main body
+            this.drawLine(ctx, start, end, color);
+            var dir = [end[0] - start[0], end[1] - start[1]];
+            var theta = Math.atan(dir[1]/dir[0]);
+            //calculating arrow's left wing (orientation: pointing up)
+            var phi = ((Math.PI/2) - theta) - wingAngle; //angle between wing and vertical
+            var leftxChange = wingLen*Math.sin(phi);
+            var leftyChange = wingLen*Math.cos(phi);
+            var leftEnd = [0, 0];
+            if (end[0] >= start[0]) { //arrow is to the right side of the particle
+                leftEnd = [end[0] - leftxChange, end[1] - leftyChange];
+            } else { //left side of the particle
+                leftEnd = [end[0] + leftxChange, end[1] + leftyChange];
+            }
+            //calculating arrow's right wing
+            var psi = theta - wingAngle; //angle between wing and horizontal
+            var rightxChange = wingLen*Math.cos(psi);
+            var rightyChange = wingLen*Math.sin(psi);
+            var rightEnd = [0, 0];
+            if (end[0] >= start[0]) { //arrow is to the right side of the particle
+                rightEnd = [end[0] - rightxChange, end[1] - rightyChange];
+            } else { //left side of the particle
+                rightEnd = [end[0] + rightxChange, end[1] + rightyChange];
+            }
+            //drawing the arrowhead
+            this.fillTriangle(ctx, [end, leftEnd, rightEnd], color);
+        },
+        drawLine: function(ctx, start, end, color, thickness) {
+            ctx.strokeStyle = color || 'rgba(0, 0, 0, 1)';
+            ctx.beginPath();
+            ctx.moveTo(start[0], start[1]);
+            ctx.lineTo(end[0], end[1]);
+            ctx.lineWidth = thickness || 3;
+            ctx.stroke();
         }
     };
 })();
