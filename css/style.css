@@ -62,6 +62,10 @@ footer a {
     padding: 0;
 }
 
+ol {
+    list-style-type: none;
+}
+
 .orange { background: #F5A91B; }
 .red { background: #E04F4F; }
 .black { background: #343536; }
@@ -82,14 +86,11 @@ footer a {
 /* utilities */
 .tiny-unit {
     display: inline-block;
-    *display: inline;
-    *zoom: 1;
     vertical-align: top;
     margin-left: 3%;
     margin-right: -.25em;
     /* Clearfix */
     overflow: hidden;
-    *overflow: visible;
 }
 
 .shard {
