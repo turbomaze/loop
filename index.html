@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Loop - A Billiards Game</title>
+        <title>Loop - a billiards game</title>
 
         <link rel="stylesheet" type="text/css" href="css/toast.css">
         <link rel="stylesheet" type="text/css" href="css/style.css">
@@ -14,25 +14,54 @@
     <body>
         <div class="wrapper">
             <header>
-                <h1>Loop - A Billiards Game</h1>
+                <h2>Loop | a billiards game</h2>
                 <hr>
             </header>
 
             <div class="container">
                 <div class="grid">
-                    <p class="shard unit two-of-five">
-                        Loop is billiards on an elliptical table. The game
-                        begins with player 1 choosing a color.
-                    </p>
+                    <div class="shard unit one-of-two">
+                        <small><strong>HOW TO PLAY</strong></small>
+                        <ol>
+                            <li>1. Player 1: choose a color.</li>
+                            <li>2. Take turns trying to pocket your colors.</li>
+                            <li>3. After that, pocket the black ball to win!</li>
+                        </ol>
+                    </div>
 
-                    <div class="shard unit three-of-five">
-                        <div class="unit one-of-two" id="player1">
-                            *Player 1*
+                    <div class="shard unit one-of-two">
+                        <small><strong>RULES & USAGE</strong></small>
+                        <ol>
+                            <li>1. Click and drag the white cue ball to hit it.</li>
+                            <li>2. Pocket the black too early and you lose.</li>
+                            <li>3. Same goes for the cue ball.</li>
+                        </ol>
+                    </div>
+
+                    <div class="shard unit span-grid">
+                        <div class="unit four-of-five" id="instructions">
+                            <span id="command"></span>
+                            &nbsp;
+                            <span id="orange-option"
+                                  class="orange color-option"
+                                  style="display: none">
+                                orange
+                            </span>
+                            &nbsp;
+                            <span id="red-option"
+                                  class="red color-option"
+                                  style="display: none">
+                                red
+                            </span>
+                            &nbsp;
+                            <span id="black-option"
+                                  class="black color-option"
+                                  style="display: none">
+                                black
+                            </span>
                         </div>
-                        <div class="unit one-of-two" id="player2">
-                            Player 2
-                        </div>
-                        <a href="#" id="restart-btn" class="btn unit span-grid">
+                        <a href="#" id="restart-btn"
+                           class="btn unit one-of-five">
                             Restart
                         </a>
                     </div>
@@ -54,4 +83,5 @@
             <div class="footer-bar" id="bar-4"></div>
         </footer>
     </body>
+
 </html>

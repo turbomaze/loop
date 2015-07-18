@@ -14,7 +14,10 @@ var LoopGame = (function() {
     var DIMS = [752, 423]; //canvas dimensions
     var BALL_RAD = 7.77;
     var BOARD_COLOR = 'green';
+    var BORDER_COLOR = '#AD8334';
+    var BORDER_THICKNESS = 20;
     var ECCENTRICITY = 0.43;
+    var USE_TEXTURES = true;
 
     /*************
      * constants */
@@ -25,7 +28,7 @@ var LoopGame = (function() {
     var FOCUS1 = [-FOCUS_LEN, 0];
     var FOCUS2 = [FOCUS_LEN, 0];
     var PHI = 0.5+0.5*Math.sqrt(5);
-    var EPS = Math.pow(10, -4.5);
+    var EPS = Math.pow(10, -2);
     var FRICTION = [
         100, //larger this is, the longer balls roll for
         1/(1 - 0.98) //the decimal is the lowest friction value
@@ -35,8 +38,9 @@ var LoopGame = (function() {
     /*********************
      * working variables */
     var canvas, ctx;
-    var balls;
-    var currentlyShooting, mouseDownLoc, currMouseLoc;
+    var balls, playerColors, turn;
+    var moveIsOngoing;
+    var currentlyAiming, mouseDownLoc, currMouseLoc;
     var woodTexture, clothTexture;
 
     /******************
@@ -76,30 +80,32 @@ var LoopGame = (function() {
         }
 
         //get the textures
-        var textures = ['wood_texture.png', 'cloth_texture.png'];
-        woodTexture = false;
-        var img0 = document.createElement('img');
-        img0.style.display = 'none';
-        img0.onload = function() {
-            woodTexture = ctx.createPattern(this, 'repeat');
-        };
-        img0.src = 'images/'+textures[0];
-        document.body.appendChild(img0);
+        woodTexture = false, clothTexture = false;
+        if (USE_TEXTURES) {
+            var textures = ['wood_texture.png', 'cloth_texture.png'];
+            var img0 = document.createElement('img');
+            img0.style.display = 'none';
+            img0.onload = function() {
+                woodTexture = ctx.createPattern(this, 'repeat');
+            };
+            img0.src = 'images/'+textures[0];
+            document.body.appendChild(img0);
 
-        clothTexture = false
-        var img1 = document.createElement('img');
-        img1.style.display = 'none';
-        img1.onload = function() {
-            clothTexture = ctx.createPattern(this, 'repeat');
-        };
-        img1.src = 'images/'+textures[1];
-        document.body.appendChild(img1);
+            clothTexture = false
+            var img1 = document.createElement('img');
+            img1.style.display = 'none';
+            img1.onload = function() {
+                clothTexture = ctx.createPattern(this, 'repeat');
+            };
+            img1.src = 'images/'+textures[1];
+            document.body.appendChild(img1);
+        }
 
         //initialize the balls
         initState();
 
         //misc variables todo with clicking
-        currentlyShooting = false;
+        currentlyAiming = false;
         mouseDownLoc = [], currMouseLoc = [];
 
         //event listeners
@@ -107,13 +113,25 @@ var LoopGame = (function() {
             e.preventDefault();
             initState();
         }, false);
+        $s('#orange-option').addEventListener('click', function(e) {
+            if (playerColors[0] === false) {
+                playerColors = [2, 3]; //2 is orange
+                updateInstructions();
+            }
+        });
+        $s('#red-option').addEventListener('click', function(e) {
+            if (playerColors[0] === false) {
+                playerColors = [3, 2]; //3 is read
+                updateInstructions();
+            }
+        });
         canvas.addEventListener('mousedown', function(e) {
             e.preventDefault();
             if (balls[0].getDistFrom([
                 currMouseLoc[0] - CENTER[0],
                 currMouseLoc[1] - CENTER[1]
             ]) < PHI*balls[0].r) {
-                currentlyShooting = true;
+                currentlyAiming = true;
                 mouseDownLoc = getMousePos(e);
             }
         }, false);
@@ -123,24 +141,52 @@ var LoopGame = (function() {
         }, false);
         canvas.addEventListener('mouseup', function(e) {
             e.preventDefault();
-            if (currentlyShooting) {
-                currentlyShooting = false;
-                balls[0].vel = [
-                    (currMouseLoc[0] - balls[0].pos[0] - CENTER[0])/50,
-                    (currMouseLoc[1] - balls[0].pos[1] - CENTER[1])/50
-                ];
+            if (currentlyAiming) {
+                currentlyAiming = false;
+                if (playerColors[0] !== false) {
+                    moveIsOngoing = true;
+                    balls[0].vel = [
+                        (currMouseLoc[0] - balls[0].pos[0] - CENTER[0])/50,
+                        (currMouseLoc[1] - balls[0].pos[1] - CENTER[1])/50
+                    ];
 
-                if (window.location.protocol.startsWith('http')) {
-                    ga('send', 'event', 'game', 'shoot');
+                    if (window.location.protocol.startsWith('http')) {
+                        ga('send', 'event', 'game', 'shoot');
+                    }
                 }
             }
         }, false);
         canvas.addEventListener('mouseout', function(e) {
-            currentlyShooting = false;
+            currentlyAiming = false;
         });
 
         //draw the board
         requestAnimationFrame(render);
+    }
+
+    function updateInstructions() {
+        var colors = [false, 'black', 'orange', 'red'];
+        function showAllColors() {
+            for (var ai = 1; ai < colors.length; ai++) {
+                $s('#'+colors[ai]+'-option').style.display = 'inline';
+            }
+        }
+        function hideAllColors() {
+            for (var ai = 1; ai < colors.length; ai++) {
+                $s('#'+colors[ai]+'-option').style.display = 'none';
+            }
+        }
+
+        if (playerColors[0] === false) { //game just started
+            $s('#command').innerHTML = 'Player 1, pick a color:';
+            showAllColors();
+            $s('#'+colors[1]+'-option').style.display = 'none';
+        } else { //game ongoing
+            $s('#command').innerHTML = 'Player '+(turn+1)+', try to pocket:';
+            hideAllColors();
+            $s('#'+colors[playerColors[turn]]+'-option')
+                .style.display = 'inline';
+        }
     }
 
     function initState() {
@@ -159,6 +205,11 @@ var LoopGame = (function() {
                 FOCUS1[0], FOCUS1[1]+2*BALL_RAD+2
             ], 3, '#DF2F3F')
         ];
+
+        playerColors = [false, false];
+        turn = 0, moveIsOngoing = false;
+
+        updateInstructions();
     }
 
     function goCrazy(n, delay) {
@@ -198,7 +249,7 @@ var LoopGame = (function() {
         }
 
         //draw the arrow
-        if (currentlyShooting && balls[0].depth !== -Infinity) {
+        if (currentlyAiming && balls[0].depth !== -Infinity) {
             Crush.drawArrow(ctx, [
                 balls[0].pos[0] + CENTER[0],
                 balls[0].pos[1] + CENTER[1]
@@ -213,23 +264,6 @@ var LoopGame = (function() {
                 ctx, vecAdd(ball.pos, CENTER),
                 BALL_RAD, ball.color
             );
-        });
-
-        //simulate friction
-        var movementStopped = true;
-        balls.map(function(ball, ballIdx) {
-            if (ball.depth === -Infinity) return; //ignore pocketed balls
-
-            var speed = Math.sqrt(
-                Math.pow(ball.vel[0], 2) + Math.pow(ball.vel[1], 2)
-            );
-            if (speed < EPS) {
-                ball.vel = [0, 0];
-            } else {
-                movementStopped = false;
-                var f = 1 - 1/(FRICTION[0]*speed + FRICTION[1]);
-                ball.vel = [f*ball.vel[0], f*ball.vel[1]];
-            }
         });
 
         //update their positions and check for wall collisions
@@ -311,17 +345,40 @@ var LoopGame = (function() {
             }
         });
 
+        //simulate friction
+        var movementStopped = true;
+        balls.map(function(ball, ballIdx) {
+            if (ball.depth === -Infinity) return; //ignore pocketed balls
+
+            var speed = Math.sqrt(
+                Math.pow(ball.vel[0], 2) + Math.pow(ball.vel[1], 2)
+            );
+            if (speed < EPS) {
+                ball.vel = [0, 0];
+            } else {
+                movementStopped = false;
+                var f = 1 - 1/(FRICTION[0]*speed + FRICTION[1]);
+                ball.vel = [f*ball.vel[0], f*ball.vel[1]];
+            }
+        });
+
+        //check to see if a turn ended
+        if (movementStopped && moveIsOngoing) {
+            turn = 1 - turn;
+            moveIsOngoing = false;
+            updateInstructions();
+        }
+
         requestAnimationFrame(render);
     }
 
     function drawLoopTable() {
         //draw the elliptical shape
-        var thickness = 20;
         Crush.fillEllipse(
             ctx, CENTER, FOCUS_LEN,
-            MAJ_AXIS+thickness/2, thickness,
+            MAJ_AXIS+BORDER_THICKNESS/2, BORDER_THICKNESS,
             clothTexture || BOARD_COLOR, 0,
-            woodTexture || '#824805'
+            woodTexture || BORDER_COLOR
         );
 
         //highlight the focus points
@@ -330,10 +387,10 @@ var LoopGame = (function() {
         ], 3, 'cyan');
         Crush.drawPoint(ctx, [
             FOCUS2[0]+CENTER[0], FOCUS2[1]+CENTER[1]
-        ], BALL_RAD+2*PHI, '#FA0C44');
+        ], BALL_RAD+2*PHI, '#EB1547');
         Crush.drawPoint(ctx, [
             FOCUS2[0]+CENTER[0], FOCUS2[1]+CENTER[1]
-        ], BALL_RAD+PHI, '#690000');
+        ], BALL_RAD+PHI, '#730000');
     }
 
     /***********
