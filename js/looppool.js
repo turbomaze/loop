@@ -1,7 +1,7 @@
 /******************\
 | Loop - Pool Game |
 | @author Anthony  |
-| @version 1.0     |
+| @version 1.0.1   |
 | @date 2015/07/16 |
 | @edit 2015/07/18 |
 \******************/
@@ -40,7 +40,7 @@ var LoopGame = (function() {
     /*********************
      * working variables */
     var canvas, ctx;
-    var balls, playerColors, turn;
+    var balls, playerColors, turn, advanceTurn, pocketedOppsBall;
     var moveIsOngoing, gameIsOngoing;
     var currentlyAiming, mouseDownLoc, currMouseLoc;
     var woodTexture, clothTexture;
@@ -237,7 +237,8 @@ var LoopGame = (function() {
         ];
 
         playerColors = [false, false];
-        turn = 0, moveIsOngoing = false, gameIsOngoing = true;
+        turn = 0, advanceTurn = true, pocketedOppsBall = false;
+        moveIsOngoing = false, gameIsOngoing = true;
 
         updateInstructions();
     }
@@ -387,21 +388,22 @@ var LoopGame = (function() {
                                     //made their color in at the correct time
                                     playerColors[turn] = 1;
                                 }
-                                updateInstructions();
+                                updateInstructions(pocketedOppsBall);
 
-                                //this will toggle again later
-                                turn = 1 - turn; //so it'll still be their turn
+                                //so it'll still be their turn
+                                advanceTurn = pocketedOppsBall;
                             } else { //uh oh
-                                if (playerColors[1-turn] === ball.type) {
-                                    //they made their opponent's ball
-                                    playerColors[1-turn] = 1; //opp on black
-                                    updateInstructions(true);
-                                } else {
-                                    //didn't make their color or their opp's
-                                    //color, so they made black or white ->
+                                if (ball.type === 0 || ball.type === 1) {
+                                    //they made black or white ->
                                     playerColors[1-turn] = Infinity; //opp wins
                                     gameIsOngoing = false;
-                                    updateInstructions();
+                                    updateInstructions(pocketedOppsBall);
+                                } else {
+                                    //they made their opponent's colored ball
+                                    playerColors[1-turn] = 1; //opp on black
+                                    advanceTurn = true;
+                                    pocketedOppsBall = true;
+                                    updateInstructions(pocketedOppsBall);
                                 }
                             }
                         }
@@ -433,8 +435,10 @@ var LoopGame = (function() {
         if (movementStopped && moveIsOngoing) {
             moveIsOngoing = false;
             if (gameIsOngoing) {
-                turn = 1 - turn;
-                updateInstructions();
+                if (advanceTurn) turn = 1 - turn;
+                else advanceTurn = true;
+                pocketedOppsBall = false; //it's a new move
+                updateInstructions(pocketedOppsBall);
             }
         }
 
