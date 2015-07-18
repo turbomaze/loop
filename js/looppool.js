@@ -32,8 +32,9 @@ var LoopGame = (function() {
     var PHI = 0.5+0.5*Math.sqrt(5);
     var EPS = Math.pow(10, -1.5); //speeds below this value are rounded to zero
     var FRICTION = [
-        100, //larger this is, the longer balls roll for
-        1/(1 - 0.98) //the decimal is the lowest friction value
+        104, //larger this is, the longer balls roll for
+        1/(1 - 0.98), //the decimal is the lowest friction value
+        0.0015 //large -> more random slowing
     ];
     var FOOTER_COLS = ['#343536', '#2A2A2A', '#232323', '#121212'];
 
@@ -427,6 +428,7 @@ var LoopGame = (function() {
             } else {
                 movementStopped = false;
                 var f = 1 - 1/(FRICTION[0]*speed + FRICTION[1]);
+                f -= FRICTION[2]*Math.random(); //randomness
                 ball.vel = [f*ball.vel[0], f*ball.vel[1]];
             }
         });
