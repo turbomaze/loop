@@ -22,7 +22,10 @@ var LoopGame = (function() {
     var MIN_AXIS = CENTER[1] - 2; //minor axis of the board
     var FOCUS_LEN = MIN_AXIS/Math.sqrt(Math.pow(ECCENTRICITY, -2)-1);
     var MAJ_AXIS = Math.sqrt(MIN_AXIS*MIN_AXIS + FOCUS_LEN*FOCUS_LEN);
+    var FOCUS1 = [-FOCUS_LEN, 0];
+    var FOCUS2 = [FOCUS_LEN, 0];
     var PHI = 0.5+0.5*Math.sqrt(5);
+    var EPS = Math.pow(10, -5);
 
     /*********************
      * working variables */
@@ -40,10 +43,17 @@ var LoopGame = (function() {
         ctx = canvas.getContext('2d');
 
         balls = [
-            new BilliardBall([-50, 15], 'white'),
-            new BilliardBall([70, 90], 'orange'),
-            new BilliardBall([10, 40], '#DF2F3F'),
-            new BilliardBall([0, -60], 'black')
+            new BilliardBall([
+                FOCUS1[0] + PHI*FOCUS_LEN,
+                FOCUS1[1]
+            ], 'white'),
+            new BilliardBall(FOCUS1, 'black'),
+            new BilliardBall([
+                FOCUS1[0], FOCUS1[1]-2*BALL_RAD-2
+            ], 'orange'),
+            new BilliardBall([
+                FOCUS1[0], FOCUS1[1]+2*BALL_RAD+2
+            ], '#DF2F3F')
         ];
 
         currentlyShooting = false;
@@ -87,11 +97,11 @@ var LoopGame = (function() {
         Crush.clear(ctx, '#EFEFEF');
         drawLoopTable();
 
-        //finger cursor
+        //cursor pointer
         if (balls[0].getDistFrom([
             currMouseLoc[0] - CENTER[0],
             currMouseLoc[1] - CENTER[1]
-        ]) < PHI*balls[0].r) {
+        ]) < PHI*balls[0].r && balls[0].depth !== -Infinity) {
             canvas.style.cursor = 'pointer';
         } else {
             canvas.style.cursor = 'inherit';
@@ -99,14 +109,18 @@ var LoopGame = (function() {
 
         //draw all the balls
         balls.map(function(ball) {
+            if (ball.depth === -Infinity) return; //ignore pocketed balls
+
             Crush.drawPoint(
-                ctx, [ball.pos[0]+CENTER[0], ball.pos[1]+CENTER[1]],
+                ctx, vecAdd(ball.pos, CENTER),
                 BALL_RAD, ball.color
             );
         });
 
         //simulate friction
         balls.map(function(ball, ballIdx) {
+            if (ball.depth === -Infinity) return; //ignore pocketed balls
+
             ball.vel = ball.vel.map(function(coord) {
                 return 1*coord;
             });
@@ -114,6 +128,8 @@ var LoopGame = (function() {
 
         //update their positions and check for wall collisions
         balls.map(function(ball, ballIdx) {
+            if (ball.depth === -Infinity) return; //ignore pocketed balls
+
             //appy velocity
             ball.move();
 
@@ -149,12 +165,44 @@ var LoopGame = (function() {
 
         //collisions with other balls
         for (var bi = 0; bi < balls.length; bi++) {
+            if (balls[bi].depth === -Infinity) continue;
             for (var li = bi+1; li < balls.length; li++) {
+                if (balls[li].depth === -Infinity) continue;
                 if (balls[bi].isHitting(balls[li])) {
                     balls[bi].collideWith(balls[li]);
                 }
             }
         }
+
+        //inside the pocket
+        balls.map(function(ball, ballIdx) {
+            if (ball.depth === -Infinity) return; //ignore pocketed balls
+
+            if (ball.isInPocket()) {
+                ball.depth -= 1/12;
+                var perpVec = normalize([
+                    ball.pos[0] - FOCUS2[0],
+                    ball.pos[1] - FOCUS2[1]
+                ]);
+                if (ball.depth > -1) {
+                    ball.vel = scalarTimes(
+                        0.88, vecSub(ball.vel, scalarTimes(0.15, perpVec))
+                    );
+                } else {
+                    ball.vel = scalarTimes(
+                        0.7, vecSub(ball.vel, scalarTimes(0.6, perpVec))
+                    );
+                    var velMag = Math.sqrt(
+                        ball.vel[0]*ball.vel[0] + ball.vel[1]*ball.vel[1]
+                    );
+                    if (ball.getDistFrom(FOCUS2) < 0.1 || velMag < 0.1) {
+                        ball.fall();
+                    }
+                }
+            } else {
+                ball.depth = 0;
+            }
+        });
 
         //draw the arrow
         if (currentlyShooting) {
@@ -175,14 +223,22 @@ var LoopGame = (function() {
         );
 
         //highlight the focus points
-        Crush.drawPoint(ctx, [CENTER[0]-FOCUS_LEN, CENTER[1]], 3, 'cyan');
-        Crush.drawPoint(ctx, [CENTER[0]+FOCUS_LEN, CENTER[1]], 3, 'cyan');
+        Crush.drawPoint(ctx, [
+            FOCUS1[0]+CENTER[0], FOCUS1[1]+CENTER[1]
+        ], 3, 'cyan');
+        Crush.drawPoint(ctx, [
+            FOCUS2[0]+CENTER[0], FOCUS2[1]+CENTER[1]
+        ], BALL_RAD+2*PHI, '#FA0C44');
+        Crush.drawPoint(ctx, [
+            FOCUS2[0]+CENTER[0], FOCUS2[1]+CENTER[1]
+        ], BALL_RAD+PHI, '#690000');
     }
 
     /***********
      * objects */
     function BilliardBall(pos, color) {
         this.pos = pos;
+        this.depth = 0;
         this.color = color;
         this.r = BALL_RAD; //don't let this vary, this game isn't that complex
         this.vel = [0, 0]; //no velocity
@@ -192,6 +248,10 @@ var LoopGame = (function() {
                 this.pos[0] + this.vel[0],
                 this.pos[1] + this.vel[1]
             ];
+        };
+        this.fall = function() {
+            this.vel = [0, 0];
+            this.depth = -Infinity;
         };
         this.getDistFrom = function(pt) {
             return Math.sqrt(
@@ -216,10 +276,17 @@ var LoopGame = (function() {
         this.isHitting = function(b) {
             return this.getDistFrom(b.pos) < 2*BALL_RAD;
         };
+        this.isInPocket = function() {
+            return this.getDistFrom(FOCUS2) < BALL_RAD+2*PHI;
+        }
         this.collideWith = function(b) {
+            //get the velocity in terms of tangential and normal components
             var normSlope = (this.pos[1]-b.pos[1])/(this.pos[0]-b.pos[0]);
             var perpVec = normalize([1, normSlope]);
             var parallelVec = normalize([-normSlope, 1]);
+
+            //new velocities are projections of the relative velocity on the
+            //tangent/normal vectors
             var newVel1 = vecAdd(
                 b.vel,
                 scalarTimes(
@@ -237,13 +304,16 @@ var LoopGame = (function() {
             this.vel = newVel1;
             b.vel = newVel2;
 
-            var overlap = 2 + 2*BALL_RAD - Math.sqrt(
+            //they collided, so they're overlapping. undo that and move more
+            var overlap = 2*BALL_RAD - Math.sqrt(
                 Math.pow(this.pos[0] - b.pos[0], 2) +
                 Math.pow(this.pos[1] - b.pos[1], 2)
             );
             var offsetVec = scalarTimes(overlap/2, parallelVec);
             this.pos = vecAdd(this.pos, offsetVec);
             b.pos = vecSub(b.pos, offsetVec);
+            this.move();
+            b.move();
         };
     }
 
