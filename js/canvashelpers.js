@@ -1,6 +1,16 @@
 //Canvas bRUSH - tools for drawing to HTML5 canvases
 //@author Anthony -- https://igliu.com
 var Crush = (function() {
+    //internal helpers
+    function resizeCanvas(canvas, every) {
+        var width = canvas.parentNode.offsetWidth;
+        var height = canvas.parentNode.offsetHeight;
+        canvas.width = width;
+        canvas.height = height;
+
+        every([width, height]);
+    }
+
     return {
         clear: function(ctx, color) {
             ctx.fillStyle = color || 'white';
@@ -27,17 +37,19 @@ var Crush = (function() {
             return ret;
         },
         fillEllipse: function(
-            ctx, center, focusDist, majAxis, thickness, color, dir
+            ctx, center, focusDist, majAxis, thickness, color, dir,
+            strokeStyle
         ) {
             color = color || 'red';
             dir = dir || 0; //0 means x is the long dimension
+            strokeStyle = strokeStyle || color;
 
             var x = center[0];
             var y = center[1];
             var rx = majAxis;
             var ry = Math.sqrt(majAxis*majAxis - focusDist*focusDist);
             ctx.fillStyle = color;
-            ctx.strokeStyle = color;
+            ctx.strokeStyle = strokeStyle;
             ctx.lineWidth = thickness;
             ctx.beginPath();
             if (dir === 0) {
@@ -102,6 +114,13 @@ var Crush = (function() {
             ctx.lineTo(end[0], end[1]);
             ctx.lineWidth = thickness || 3;
             ctx.stroke();
+        },
+
+        registerDynamicCanvas: function(canvas, every) {
+            resizeCanvas(canvas, every); //initial call
+            window.addEventListener('resize', function() {
+                resizeCanvas(canvas, every);
+            });
         }
     };
 })();

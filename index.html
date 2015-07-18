@@ -2,31 +2,83 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Loop - A Billiards Game</title>
+        <title>Loop - a billiards game</title>
 
         <link rel="stylesheet" type="text/css" href="css/toast.css">
         <link rel="stylesheet" type="text/css" href="css/style.css">
+        <link href="http://fonts.googleapis.com/css?family=Open+Sans:300" rel="stylesheet" type="text/css">
 
         <script src="js/canvashelpers.js"></script>
         <script src="js/looppool.js"></script>
     </head>
     <body>
-        <div class="container">
-            <div class="grid">
-                <h1 class="unit span-grid">Loop - A Billiards Game</h1>
+        <div class="wrapper">
+            <header>
+                <h2>Loop | a billiards game</h2>
+                <hr>
+            </header>
 
-                <hr class="unit span-grid">
+            <div class="container">
+                <div class="grid">
+                    <div class="shard unit one-of-two">
+                        <small><strong>HOW TO PLAY</strong></small>
+                        <ol>
+                            <li>1. Player 1: choose a color.</li>
+                            <li>2. Take turns trying to pocket your colors.</li>
+                            <li>3. After that, pocket the black ball to win!</li>
+                        </ol>
+                    </div>
 
-                <div class="unit span-grid" id="canvas-container">
-                    <canvas id="canvas"></canvas>
+                    <div class="shard unit one-of-two">
+                        <small><strong>RULES & USAGE</strong></small>
+                        <ol>
+                            <li>1. Click and drag the white cue ball to hit it.</li>
+                            <li>2. Pocket the black too early and you lose.</li>
+                            <li>3. Same goes for the cue ball.</li>
+                        </ol>
+                    </div>
+
+                    <div class="shard unit span-grid">
+                        <div class="unit four-of-five" id="instructions">
+                            <span id="command"></span>
+                            <span id="orange-option"
+                                  class="orange color-option"
+                                  style="display: none">
+                                orange
+                            </span>
+                            <span id="red-option"
+                                  class="red color-option"
+                                  style="display: none">
+                                red
+                            </span>
+                            <span id="black-option"
+                                  class="black color-option"
+                                  style="display: none">
+                                black
+                            </span>
+                        </div>
+                        <a href="#" id="restart-btn"
+                           class="btn unit one-of-five">
+                            Restart
+                        </a>
+                    </div>
+
+                    <div class="unit span-grid shard" id="canvas-container">
+                        <canvas id="canvas"></canvas>
+                    </div>
                 </div>
-
-                <p class="unit span-grid">
-                    To fiddle with this game in its current state, click and
-                    drag the cue ball to set its velocity. Watch all of the
-                    balls bounce around!
-                </p>
             </div>
+            <div class="push"></div>
         </div>
+
+        <footer>
+            <div class="footer-bar" id="bar-1">
+                By <a href="https://igliu.com" target="_blank">Anthony Liu</a>
+            </div>
+            <div class="footer-bar" id="bar-2"></div>
+            <div class="footer-bar" id="bar-3"></div>
+            <div class="footer-bar" id="bar-4"></div>
+        </footer>
     </body>
+
 </html>

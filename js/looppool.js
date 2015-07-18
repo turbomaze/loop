@@ -1,9 +1,9 @@
 /******************\
 | Loop - Pool Game |
 | @author Anthony  |
-| @version 0.3     |
+| @version 0.4     |
 | @date 2015/07/16 |
-| @edit 2015/07/17 |
+| @edit 2015/07/18 |
 \******************/
 
 var LoopGame = (function() {
@@ -11,27 +11,37 @@ var LoopGame = (function() {
 
     /**********
      * config */
-    var DIMS = [720, 405]; //canvas dimensions
+    var DIMS = [752, 423]; //canvas dimensions
     var BALL_RAD = 7.77;
     var BOARD_COLOR = 'green';
+    var BORDER_COLOR = '#AD8334';
+    var BORDER_THICKNESS = 20;
     var ECCENTRICITY = 0.43;
+    var USE_TEXTURES = true;
 
     /*************
      * constants */
     var CENTER = [DIMS[0]/2, DIMS[1]/2]; //canvas center
-    var MIN_AXIS = CENTER[1] - 2; //minor axis of the board
+    var MIN_AXIS = CENTER[1] - 25; //minor axis of the board
     var FOCUS_LEN = MIN_AXIS/Math.sqrt(Math.pow(ECCENTRICITY, -2)-1);
     var MAJ_AXIS = Math.sqrt(MIN_AXIS*MIN_AXIS + FOCUS_LEN*FOCUS_LEN);
     var FOCUS1 = [-FOCUS_LEN, 0];
     var FOCUS2 = [FOCUS_LEN, 0];
     var PHI = 0.5+0.5*Math.sqrt(5);
-    var EPS = Math.pow(10, -5);
+    var EPS = Math.pow(10, -1.5); //speeds below this value are rounded to zero
+    var FRICTION = [
+        100, //larger this is, the longer balls roll for
+        1/(1 - 0.98) //the decimal is the lowest friction value
+    ];
+    var FOOTER_COLS = ['#343536', '#2A2A2A', '#232323', '#121212'];
 
     /*********************
      * working variables */
     var canvas, ctx;
-    var balls;
-    var currentlyShooting, mouseDownLoc, currMouseLoc;
+    var balls, playerColors, turn;
+    var moveIsOngoing, gameIsOngoing;
+    var currentlyAiming, mouseDownLoc, currMouseLoc;
+    var woodTexture, clothTexture;
 
     /******************
      * work functions */
@@ -42,31 +52,86 @@ var LoopGame = (function() {
         canvas.height = DIMS[1];
         ctx = canvas.getContext('2d');
 
-        balls = [
-            new BilliardBall([
-                FOCUS1[0] + PHI*FOCUS_LEN,
-                FOCUS1[1]
-            ], 'white'),
-            new BilliardBall(FOCUS1, 'black'),
-            new BilliardBall([
-                FOCUS1[0], FOCUS1[1]-2*BALL_RAD-2
-            ], 'orange'),
-            new BilliardBall([
-                FOCUS1[0], FOCUS1[1]+2*BALL_RAD+2
-            ], '#DF2F3F')
-        ];
+        //make the canvas adapt to the window size
+        $s('#canvas-container').style.height = DIMS[1]+'px';
+        Crush.registerDynamicCanvas(canvas, function(dims) {
+            //adjust this so you can see the border radius of the shard
+            dims[0] -= 6;
+            canvas.width = dims[0];
 
-        currentlyShooting = false;
+            //recalculate all of the ellipse's variables
+            DIMS = dims.slice(0);
+            CENTER = [DIMS[0]/2, DIMS[1]/2]; //canvas center
+            MIN_AXIS = CENTER[1] - 25; //minor axis of the board
+            FOCUS_LEN = MIN_AXIS/Math.sqrt(Math.pow(ECCENTRICITY, -2)-1);
+            MAJ_AXIS = Math.sqrt(MIN_AXIS*MIN_AXIS + FOCUS_LEN*FOCUS_LEN);
+            FOCUS1 = [-FOCUS_LEN, 0];
+            FOCUS2 = [FOCUS_LEN, 0];
+        });
+
+        //analytics
+        if (window.location.protocol.startsWith('http')) {
+            (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+            })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+            ga('create', 'UA-47072440-9', 'auto');
+            ga('send', 'pageview');
+        }
+
+        //get the textures
+        woodTexture = false, clothTexture = false;
+        if (USE_TEXTURES) {
+            var textures = ['wood_texture.png', 'cloth_texture.png'];
+            var img0 = document.createElement('img');
+            img0.style.display = 'none';
+            img0.onload = function() {
+                woodTexture = ctx.createPattern(this, 'repeat');
+            };
+            img0.src = 'images/'+textures[0];
+            document.body.appendChild(img0);
+
+            clothTexture = false
+            var img1 = document.createElement('img');
+            img1.style.display = 'none';
+            img1.onload = function() {
+                clothTexture = ctx.createPattern(this, 'repeat');
+            };
+            img1.src = 'images/'+textures[1];
+            document.body.appendChild(img1);
+        }
+
+        //initialize the balls
+        initState();
+
+        //misc variables todo with clicking
+        currentlyAiming = false;
         mouseDownLoc = [], currMouseLoc = [];
 
         //event listeners
+        $s('#restart-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            initState();
+        }, false);
+        $s('#orange-option').addEventListener('click', function(e) {
+            if (playerColors[0] === false) {
+                playerColors = [2, 3]; //2 is orange
+                updateInstructions();
+            }
+        });
+        $s('#red-option').addEventListener('click', function(e) {
+            if (playerColors[0] === false) {
+                playerColors = [3, 2]; //3 is read
+                updateInstructions();
+            }
+        });
         canvas.addEventListener('mousedown', function(e) {
             e.preventDefault();
             if (balls[0].getDistFrom([
                 currMouseLoc[0] - CENTER[0],
                 currMouseLoc[1] - CENTER[1]
             ]) < PHI*balls[0].r) {
-                currentlyShooting = true;
+                currentlyAiming = true;
                 mouseDownLoc = getMousePos(e);
             }
         }, false);
@@ -76,25 +141,119 @@ var LoopGame = (function() {
         }, false);
         canvas.addEventListener('mouseup', function(e) {
             e.preventDefault();
-            if (currentlyShooting) {
-                currentlyShooting = false;
-                balls[0].vel = [
-                    (currMouseLoc[0] - balls[0].pos[0] - CENTER[0])/50,
-                    (currMouseLoc[1] - balls[0].pos[1] - CENTER[1])/50
-                ];
+            if (currentlyAiming) {
+                currentlyAiming = false;
+                if (playerColors[0] !== false && !moveIsOngoing) {
+                    moveIsOngoing = true;
+                    balls[0].vel = [
+                        (currMouseLoc[0] - balls[0].pos[0] - CENTER[0])/50,
+                        (currMouseLoc[1] - balls[0].pos[1] - CENTER[1])/50
+                    ];
+
+                    if (window.location.protocol.startsWith('http')) {
+                        ga('send', 'event', 'game', 'shoot');
+                    }
+                } else if (playerColors[0] === false) {
+                    //they're trying to move but they haven't selected a color
+                    $s('#command').innerHTML = '<strong style="color: red">'+
+                        $s('#command').innerHTML+
+                    '</strong>';
+                }
             }
         }, false);
         canvas.addEventListener('mouseout', function(e) {
-            currentlyShooting = false;
+            currentlyAiming = false;
         });
 
         //draw the board
         requestAnimationFrame(render);
     }
 
+    function updateInstructions(madeOpponentsBall) {
+        var colors = [false, 'black', 'orange', 'red'];
+        function showAllColors() {
+            for (var ai = 1; ai < colors.length; ai++) {
+                $s('#'+colors[ai]+'-option').style.display = 'inline';
+            }
+        }
+        function hideAllColors() {
+            for (var ai = 1; ai < colors.length; ai++) {
+                $s('#'+colors[ai]+'-option').style.display = 'none';
+            }
+        }
+
+        if (playerColors[0] === false) { //game just started
+            $s('#command').innerHTML = 'Player 1, pick a color:';
+            showAllColors();
+            $s('#'+colors[1]+'-option').style.display = 'none';
+        } else if (playerColors[0] === Infinity) { //player 1 wins
+            $s('#command').innerHTML = 'Player 1 wins! Click restart '+
+                'to play again.';
+            hideAllColors();
+        } else if (playerColors[1] === Infinity) { //player 2 wins
+            $s('#command').innerHTML = 'Player 2 wins! Click restart '+
+                'to play again.';
+            hideAllColors();
+        } else if (madeOpponentsBall === true) {
+            $s('#command').innerHTML = '<strong style="color: red">Player '+
+                (turn+1)+', you pocketed your opponent\'s ball!</strong>';
+            hideAllColors();
+        } else {
+            //game ongoing
+            $s('#command').innerHTML = 'Player '+(turn+1)+', try to pocket:';
+            hideAllColors();
+            $s('#'+colors[playerColors[turn]]+'-option')
+                .style.display = 'inline';
+        }
+    }
+
+    function initState() {
+        if (typeof balls === 'object') goCrazy(12, 80);
+
+        balls = [
+            new BilliardBall([
+                FOCUS1[0] + PHI*FOCUS_LEN,
+                FOCUS1[1]
+            ], 0, 'white'),
+            new BilliardBall(FOCUS1, 1, 'black'),
+            new BilliardBall([
+                FOCUS1[0], FOCUS1[1]-2*BALL_RAD-2
+            ], 2, 'orange'),
+            new BilliardBall([
+                FOCUS1[0], FOCUS1[1]+2*BALL_RAD+2
+            ], 3, '#DF2F3F')
+        ];
+
+        playerColors = [false, false];
+        turn = 0, moveIsOngoing = false, gameIsOngoing = true;
+
+        updateInstructions();
+    }
+
+    function goCrazy(n, delay) {
+        var FooterColorChanger = new AsyncTrain(function(idx) {
+            if (idx === n) return false;
+            else if (idx === n-1) {
+                for (var ai = 1; ai <= FOOTER_COLS.length; ai++) {
+                    $s('#bar-'+ai).style.background = FOOTER_COLS[ai-1];
+                }
+                return true;
+            } else {
+                var colors = FOOTER_COLS.slice(0);
+                for (var ai = 1; ai <= FOOTER_COLS.length; ai++) {
+                    var colorIdx = (FOOTER_COLS.length+idx-ai)%FOOTER_COLS.length;
+                    var color = FOOTER_COLS[colorIdx];
+                    $s('#bar-'+ai).style.background = color;
+                }
+                return true;
+            }
+        }, function() { return delay; });
+        FooterColorChanger.run();
+    }
+
     function render() {
         //draw the table
-        Crush.clear(ctx, '#EFEFEF');
+        Crush.clear(ctx, '#FFFFFF');
         drawLoopTable();
 
         //cursor pointer
@@ -107,6 +266,14 @@ var LoopGame = (function() {
             canvas.style.cursor = 'inherit';
         }
 
+        //draw the arrow
+        if (currentlyAiming && balls[0].depth !== -Infinity) {
+            Crush.drawArrow(ctx, [
+                balls[0].pos[0] + CENTER[0],
+                balls[0].pos[1] + CENTER[1]
+            ], currMouseLoc, '#EBEBCC');
+        }
+
         //draw all the balls
         balls.map(function(ball) {
             if (ball.depth === -Infinity) return; //ignore pocketed balls
@@ -115,15 +282,6 @@ var LoopGame = (function() {
                 ctx, vecAdd(ball.pos, CENTER),
                 BALL_RAD, ball.color
             );
-        });
-
-        //simulate friction
-        balls.map(function(ball, ballIdx) {
-            if (ball.depth === -Infinity) return; //ignore pocketed balls
-
-            ball.vel = ball.vel.map(function(coord) {
-                return 1*coord;
-            });
         });
 
         //update their positions and check for wall collisions
@@ -197,6 +355,36 @@ var LoopGame = (function() {
                     );
                     if (ball.getDistFrom(FOCUS2) < 0.1 || velMag < 0.1) {
                         ball.fall();
+                        goCrazy(15, 40);
+
+                        if (gameIsOngoing) {
+                            if (playerColors[turn] === ball.type) { //good
+                                if (playerColors[turn] === 1) {
+                                    //made the black in at the correct time
+                                    playerColors[turn] = Infinity; //they win!
+                                    gameIsOngoing = false;
+                                } else {
+                                    //made their color in at the correct time
+                                    playerColors[turn] = 1;
+                                }
+                                updateInstructions();
+
+                                //this will toggle again later
+                                turn = 1 - turn; //so it'll still be their turn
+                            } else { //uh oh
+                                if (playerColors[1-turn] === ball.type) {
+                                    //they made their opponent's ball
+                                    playerColors[1-turn] = 1; //opp on black
+                                    updateInstructions(true);
+                                } else {
+                                    //didn't make their color or their opp's
+                                    //color, so they made black or white ->
+                                    playerColors[1-turn] = Infinity; //opp wins
+                                    gameIsOngoing = false;
+                                    updateInstructions();
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -204,12 +392,30 @@ var LoopGame = (function() {
             }
         });
 
-        //draw the arrow
-        if (currentlyShooting) {
-            Crush.drawArrow(ctx, [
-                balls[0].pos[0] + CENTER[0],
-                balls[0].pos[1] + CENTER[1]
-            ], currMouseLoc, 'white');
+        //simulate friction
+        var movementStopped = true;
+        balls.map(function(ball, ballIdx) {
+            if (ball.depth === -Infinity) return; //ignore pocketed balls
+
+            var speed = Math.sqrt(
+                Math.pow(ball.vel[0], 2) + Math.pow(ball.vel[1], 2)
+            );
+            if (speed < EPS) {
+                ball.vel = [0, 0];
+            } else {
+                movementStopped = false;
+                var f = 1 - 1/(FRICTION[0]*speed + FRICTION[1]);
+                ball.vel = [f*ball.vel[0], f*ball.vel[1]];
+            }
+        });
+
+        //check to see if a turn ended
+        if (movementStopped && moveIsOngoing) {
+            moveIsOngoing = false;
+            if (gameIsOngoing) {
+                turn = 1 - turn;
+                updateInstructions();
+            }
         }
 
         requestAnimationFrame(render);
@@ -219,7 +425,9 @@ var LoopGame = (function() {
         //draw the elliptical shape
         Crush.fillEllipse(
             ctx, CENTER, FOCUS_LEN,
-            MAJ_AXIS, 3, BOARD_COLOR
+            MAJ_AXIS+BORDER_THICKNESS/2, BORDER_THICKNESS,
+            clothTexture || BOARD_COLOR, 0,
+            woodTexture || BORDER_COLOR
         );
 
         //highlight the focus points
@@ -228,17 +436,18 @@ var LoopGame = (function() {
         ], 3, 'cyan');
         Crush.drawPoint(ctx, [
             FOCUS2[0]+CENTER[0], FOCUS2[1]+CENTER[1]
-        ], BALL_RAD+2*PHI, '#FA0C44');
+        ], BALL_RAD+2*PHI, '#EB1547');
         Crush.drawPoint(ctx, [
             FOCUS2[0]+CENTER[0], FOCUS2[1]+CENTER[1]
-        ], BALL_RAD+PHI, '#690000');
+        ], BALL_RAD+PHI, '#730000');
     }
 
     /***********
      * objects */
-    function BilliardBall(pos, color) {
+    function BilliardBall(pos, type, color) {
         this.pos = pos;
         this.depth = 0;
+        this.type = type;
         this.color = color;
         this.r = BALL_RAD; //don't let this vary, this game isn't that complex
         this.vel = [0, 0]; //no velocity
@@ -252,6 +461,10 @@ var LoopGame = (function() {
         this.fall = function() {
             this.vel = [0, 0];
             this.depth = -Infinity;
+
+            if (window.location.protocol.startsWith('http')) {
+                ga('send', 'event', 'game', 'pocket');
+            }
         };
         this.getDistFrom = function(pt) {
             return Math.sqrt(
@@ -314,6 +527,39 @@ var LoopGame = (function() {
             b.pos = vecSub(b.pos, offsetVec);
             this.move();
             b.move();
+        };
+    }
+
+    function AsyncTrain(chooChoo, getNextDelay) {
+        var self = this;
+        this.timer = null;
+        this.isPaused = false;
+        this.delayFunc = getNextDelay;
+        this.count = 0;
+        this.run = function() {
+            var keepGoing = chooChoo(this.count);
+            this.count++;
+            if (keepGoing) {
+                this.timer = setTimeout(function() {
+                    self.run();
+                }, this.delayFunc());
+            } else {
+                //stop
+            }
+        };
+        this.pause = function() {
+            //pause here
+            this.isPaused = !this.isPaused;
+            if (this.isPaused) { //they're pausing
+                clearTimeout(this.timer);
+            } else { //they're unpausing
+                this.timer = setTimeout(function() {
+                    self.run();
+                }, this.delayFunc());
+            }
+        };
+        this.setDelayFunc = function(func) {
+            this.delayFunc = func;
         };
     }
 
