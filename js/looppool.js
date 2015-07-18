@@ -25,7 +25,11 @@ var LoopGame = (function() {
     var FOCUS1 = [-FOCUS_LEN, 0];
     var FOCUS2 = [FOCUS_LEN, 0];
     var PHI = 0.5+0.5*Math.sqrt(5);
-    var EPS = Math.pow(10, -5);
+    var EPS = Math.pow(10, -4.5);
+    var FRICTION = [
+        100, //larger this is, the longer balls roll for
+        1/(1 - 0.98) //the decimal is the lowest friction value
+    ];
 
     /*********************
      * working variables */
@@ -118,12 +122,20 @@ var LoopGame = (function() {
         });
 
         //simulate friction
+        var movementStopped = true;
         balls.map(function(ball, ballIdx) {
             if (ball.depth === -Infinity) return; //ignore pocketed balls
 
-            ball.vel = ball.vel.map(function(coord) {
-                return 1*coord;
-            });
+            var speed = Math.sqrt(
+                Math.pow(ball.vel[0], 2) + Math.pow(ball.vel[1], 2)
+            );
+            if (speed < EPS) {
+                ball.vel = [0, 0];
+            } else {
+                movementStopped = false;
+                var f = 1 - 1/(FRICTION[0]*speed + FRICTION[1]);
+                ball.vel = [f*ball.vel[0], f*ball.vel[1]];
+            }
         });
 
         //update their positions and check for wall collisions
