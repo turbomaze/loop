@@ -28,7 +28,7 @@ var LoopGame = (function() {
     var FOCUS1 = [-FOCUS_LEN, 0];
     var FOCUS2 = [FOCUS_LEN, 0];
     var PHI = 0.5+0.5*Math.sqrt(5);
-    var EPS = Math.pow(10, -2);
+    var EPS = Math.pow(10, -1.5); //speeds below this value are rounded to zero
     var FRICTION = [
         100, //larger this is, the longer balls roll for
         1/(1 - 0.98) //the decimal is the lowest friction value
@@ -39,7 +39,7 @@ var LoopGame = (function() {
      * working variables */
     var canvas, ctx;
     var balls, playerColors, turn;
-    var moveIsOngoing;
+    var moveIsOngoing, gameIsOngoing;
     var currentlyAiming, mouseDownLoc, currMouseLoc;
     var woodTexture, clothTexture;
 
@@ -143,7 +143,7 @@ var LoopGame = (function() {
             e.preventDefault();
             if (currentlyAiming) {
                 currentlyAiming = false;
-                if (playerColors[0] !== false) {
+                if (playerColors[0] !== false && !moveIsOngoing) {
                     moveIsOngoing = true;
                     balls[0].vel = [
                         (currMouseLoc[0] - balls[0].pos[0] - CENTER[0])/50,
@@ -153,6 +153,11 @@ var LoopGame = (function() {
                     if (window.location.protocol.startsWith('http')) {
                         ga('send', 'event', 'game', 'shoot');
                     }
+                } else if (playerColors[0] === false) {
+                    //they're trying to move but they haven't selected a color
+                    $s('#command').innerHTML = '<strong style="color: red">'+
+                        $s('#command').innerHTML+
+                    '</strong>';
                 }
             }
         }, false);
@@ -164,7 +169,7 @@ var LoopGame = (function() {
         requestAnimationFrame(render);
     }
 
-    function updateInstructions() {
+    function updateInstructions(madeOpponentsBall) {
         var colors = [false, 'black', 'orange', 'red'];
         function showAllColors() {
             for (var ai = 1; ai < colors.length; ai++) {
@@ -181,7 +186,20 @@ var LoopGame = (function() {
             $s('#command').innerHTML = 'Player 1, pick a color:';
             showAllColors();
             $s('#'+colors[1]+'-option').style.display = 'none';
-        } else { //game ongoing
+        } else if (playerColors[0] === Infinity) { //player 1 wins
+            $s('#command').innerHTML = 'Player 1 wins! Click restart '+
+                'to play again.';
+            hideAllColors();
+        } else if (playerColors[1] === Infinity) { //player 2 wins
+            $s('#command').innerHTML = 'Player 2 wins! Click restart '+
+                'to play again.';
+            hideAllColors();
+        } else if (madeOpponentsBall === true) {
+            $s('#command').innerHTML = '<strong style="color: red">Player '+
+                (turn+1)+', you pocketed your opponent\'s ball!</strong>';
+            hideAllColors();
+        } else {
+            //game ongoing
             $s('#command').innerHTML = 'Player '+(turn+1)+', try to pocket:';
             hideAllColors();
             $s('#'+colors[playerColors[turn]]+'-option')
@@ -207,7 +225,7 @@ var LoopGame = (function() {
         ];
 
         playerColors = [false, false];
-        turn = 0, moveIsOngoing = false;
+        turn = 0, moveIsOngoing = false, gameIsOngoing = true;
 
         updateInstructions();
     }
@@ -338,6 +356,35 @@ var LoopGame = (function() {
                     if (ball.getDistFrom(FOCUS2) < 0.1 || velMag < 0.1) {
                         ball.fall();
                         goCrazy(15, 40);
+
+                        if (gameIsOngoing) {
+                            if (playerColors[turn] === ball.type) { //good
+                                if (playerColors[turn] === 1) {
+                                    //made the black in at the correct time
+                                    playerColors[turn] = Infinity; //they win!
+                                    gameIsOngoing = false;
+                                } else {
+                                    //made their color in at the correct time
+                                    playerColors[turn] = 1;
+                                }
+                                updateInstructions();
+
+                                //this will toggle again later
+                                turn = 1 - turn; //so it'll still be their turn
+                            } else { //uh oh
+                                if (playerColors[1-turn] === ball.type) {
+                                    //they made their opponent's ball
+                                    playerColors[1-turn] = 1; //opp on black
+                                    updateInstructions(true);
+                                } else {
+                                    //didn't make their color or their opp's
+                                    //color, so they made black or white ->
+                                    playerColors[1-turn] = Infinity; //opp wins
+                                    gameIsOngoing = false;
+                                    updateInstructions();
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -364,9 +411,11 @@ var LoopGame = (function() {
 
         //check to see if a turn ended
         if (movementStopped && moveIsOngoing) {
-            turn = 1 - turn;
             moveIsOngoing = false;
-            updateInstructions();
+            if (gameIsOngoing) {
+                turn = 1 - turn;
+                updateInstructions();
+            }
         }
 
         requestAnimationFrame(render);

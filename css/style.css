@@ -62,12 +62,6 @@ footer a {
     padding: 0;
 }
 
-#player1, #player2 {
-    border: 1px solid #808182;
-    border-radius: 2px;
-    padding: 0.25em 0.5em;
-}
-
 .orange { background: #F5A91B; }
 .red { background: #E04F4F; }
 .black { background: #343536; }
@@ -78,6 +72,7 @@ footer a {
     padding: 0.25em 1em;
     border-radius: 2px;
     cursor: pointer;
+    margin-right: 0.5em;
 }
 
 #instructions {
