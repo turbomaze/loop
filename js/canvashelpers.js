@@ -48,14 +48,22 @@ var Crush = (function() {
             var y = center[1];
             var rx = majAxis;
             var ry = Math.sqrt(majAxis*majAxis - focusDist*focusDist);
+            if (dir === 1) {
+                var tmp = ry;
+                ry = rx, rx = tmp;
+            }
             ctx.fillStyle = color;
             ctx.strokeStyle = strokeStyle;
             ctx.lineWidth = thickness;
             ctx.beginPath();
-            if (dir === 0) {
+            if (typeof ctx.ellipse === 'function') {
                 ctx.ellipse(x, y, rx, ry, 0, 0, 2*Math.PI);
             } else {
-                ctx.ellipse(x, y, ry, rx, 0, 0, 2*Math.PI);
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(rx, ry);
+                ctx.arc(0, 0, 1, 0, 2 * Math.PI, false);
+                ctx.restore();
             }
             ctx.fill();
             ctx.stroke();

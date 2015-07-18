@@ -1,7 +1,7 @@
 /******************\
 | Loop - Pool Game |
 | @author Anthony  |
-| @version 0.4     |
+| @version 1.0     |
 | @date 2015/07/16 |
 | @edit 2015/07/18 |
 \******************/
