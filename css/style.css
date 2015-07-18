@@ -5,10 +5,10 @@ html, body {
 }
 .wrapper {
     min-height: 100%;
-    margin: 0 auto -12em;
+    margin: 0 auto -10em;
 }
 footer, .push {
-    height: 12em;
+    height: 10em;
 }
 
 body {
@@ -32,16 +32,54 @@ footer {
 }
 
 footer .footer-bar {
-    height: 3em;
-    line-height: 3em;
+    height: 2.5em;
+    line-height: 2.5em;
 }
-footer .footer-bar.bar-1 { background: #343536; }
-footer .footer-bar.bar-2 { background: #2A2A2A; }
-footer .footer-bar.bar-3 { background: #232323; }
-footer .footer-bar.bar-4 { background: #121212; }
+footer #bar-1 { background: #343536; }
+footer #bar-2 { background: #2A2A2A; }
+footer #bar-3 { background: #232323; }
+footer #bar-4 { background: #121212; }
 
 footer a {
     color: #EFEFEF;
     font-weight: bold;
     text-decoration: none;
+}
+
+#canvas-container {
+    padding: 0;
+}
+
+#player1, #player2 {
+    border: 1px solid #808182;
+    border-radius: 2px;
+    padding: 0.25em 0.5em;
+    margin-bottom: 1em;
+}
+
+/* utilities */
+.shard {
+    background: #fff;
+    border-radius: 3px;
+    padding: 10px;
+    margin-bottom: 10px;
+    -webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+    -moz-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+}
+
+a.btn {
+    padding: 4px;
+    border-radius: 4px;
+    background-color: #3BB023;
+    color: white;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer
+}
+a.btn:hover {
+    background-color: #34A61E;
+}
+a.btn:active {
+    background-color: #24960E;
 }

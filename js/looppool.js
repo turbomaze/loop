@@ -30,6 +30,7 @@ var LoopGame = (function() {
         100, //larger this is, the longer balls roll for
         1/(1 - 0.98) //the decimal is the lowest friction value
     ];
+    var FOOTER_COLS = ['#343536', '#2A2A2A', '#232323', '#121212'];
 
     /*********************
      * working variables */
@@ -46,6 +47,23 @@ var LoopGame = (function() {
         canvas.width = DIMS[0];
         canvas.height = DIMS[1];
         ctx = canvas.getContext('2d');
+
+        //make the canvas adapt to the window size
+        $s('#canvas-container').style.height = DIMS[1]+'px';
+        Crush.registerDynamicCanvas(canvas, function(dims) {
+            //adjust this so you can see the border radius of the shard
+            dims[0] -= 6;
+            canvas.width = dims[0];
+
+            //recalculate all of the ellipse's variables
+            DIMS = dims.slice(0);
+            CENTER = [DIMS[0]/2, DIMS[1]/2]; //canvas center
+            MIN_AXIS = CENTER[1] - 25; //minor axis of the board
+            FOCUS_LEN = MIN_AXIS/Math.sqrt(Math.pow(ECCENTRICITY, -2)-1);
+            MAJ_AXIS = Math.sqrt(MIN_AXIS*MIN_AXIS + FOCUS_LEN*FOCUS_LEN);
+            FOCUS1 = [-FOCUS_LEN, 0];
+            FOCUS2 = [FOCUS_LEN, 0];
+        });
 
         //analytics
         if (window.location.protocol.startsWith('http')) {
@@ -78,25 +96,17 @@ var LoopGame = (function() {
         document.body.appendChild(img1);
 
         //initialize the balls
-        balls = [
-            new BilliardBall([
-                FOCUS1[0] + PHI*FOCUS_LEN,
-                FOCUS1[1]
-            ], 'white'),
-            new BilliardBall(FOCUS1, 'black'),
-            new BilliardBall([
-                FOCUS1[0], FOCUS1[1]-2*BALL_RAD-2
-            ], 'orange'),
-            new BilliardBall([
-                FOCUS1[0], FOCUS1[1]+2*BALL_RAD+2
-            ], '#DF2F3F')
-        ];
+        initState();
 
         //misc variables todo with clicking
         currentlyShooting = false;
         mouseDownLoc = [], currMouseLoc = [];
 
         //event listeners
+        $s('#restart-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            initState();
+        }, false);
         canvas.addEventListener('mousedown', function(e) {
             e.preventDefault();
             if (balls[0].getDistFrom([
@@ -119,6 +129,10 @@ var LoopGame = (function() {
                     (currMouseLoc[0] - balls[0].pos[0] - CENTER[0])/50,
                     (currMouseLoc[1] - balls[0].pos[1] - CENTER[1])/50
                 ];
+
+                if (window.location.protocol.startsWith('http')) {
+                    ga('send', 'event', 'game', 'shoot');
+                }
             }
         }, false);
         canvas.addEventListener('mouseout', function(e) {
@@ -129,9 +143,48 @@ var LoopGame = (function() {
         requestAnimationFrame(render);
     }
 
+    function initState() {
+        if (typeof balls === 'object') goCrazy(12, 80);
+
+        balls = [
+            new BilliardBall([
+                FOCUS1[0] + PHI*FOCUS_LEN,
+                FOCUS1[1]
+            ], 0, 'white'),
+            new BilliardBall(FOCUS1, 1, 'black'),
+            new BilliardBall([
+                FOCUS1[0], FOCUS1[1]-2*BALL_RAD-2
+            ], 2, 'orange'),
+            new BilliardBall([
+                FOCUS1[0], FOCUS1[1]+2*BALL_RAD+2
+            ], 3, '#DF2F3F')
+        ];
+    }
+
+    function goCrazy(n, delay) {
+        var FooterColorChanger = new AsyncTrain(function(idx) {
+            if (idx === n) return false;
+            else if (idx === n-1) {
+                for (var ai = 1; ai <= FOOTER_COLS.length; ai++) {
+                    $s('#bar-'+ai).style.background = FOOTER_COLS[ai-1];
+                }
+                return true;
+            } else {
+                var colors = FOOTER_COLS.slice(0);
+                for (var ai = 1; ai <= FOOTER_COLS.length; ai++) {
+                    var colorIdx = (FOOTER_COLS.length+idx-ai)%FOOTER_COLS.length;
+                    var color = FOOTER_COLS[colorIdx];
+                    $s('#bar-'+ai).style.background = color;
+                }
+                return true;
+            }
+        }, function() { return delay; });
+        FooterColorChanger.run();
+    }
+
     function render() {
         //draw the table
-        Crush.clear(ctx, '#CAE6D1');
+        Crush.clear(ctx, '#FFFFFF');
         drawLoopTable();
 
         //cursor pointer
@@ -142,6 +195,14 @@ var LoopGame = (function() {
             canvas.style.cursor = 'pointer';
         } else {
             canvas.style.cursor = 'inherit';
+        }
+
+        //draw the arrow
+        if (currentlyShooting && balls[0].depth !== -Infinity) {
+            Crush.drawArrow(ctx, [
+                balls[0].pos[0] + CENTER[0],
+                balls[0].pos[1] + CENTER[1]
+            ], currMouseLoc, '#EBEBCC');
         }
 
         //draw all the balls
@@ -242,20 +303,13 @@ var LoopGame = (function() {
                     );
                     if (ball.getDistFrom(FOCUS2) < 0.1 || velMag < 0.1) {
                         ball.fall();
+                        goCrazy(15, 40);
                     }
                 }
             } else {
                 ball.depth = 0;
             }
         });
-
-        //draw the arrow
-        if (currentlyShooting && balls[0].depth !== -Infinity) {
-            Crush.drawArrow(ctx, [
-                balls[0].pos[0] + CENTER[0],
-                balls[0].pos[1] + CENTER[1]
-            ], currMouseLoc, 'white');
-        }
 
         requestAnimationFrame(render);
     }
@@ -284,9 +338,10 @@ var LoopGame = (function() {
 
     /***********
      * objects */
-    function BilliardBall(pos, color) {
+    function BilliardBall(pos, type, color) {
         this.pos = pos;
         this.depth = 0;
+        this.type = type;
         this.color = color;
         this.r = BALL_RAD; //don't let this vary, this game isn't that complex
         this.vel = [0, 0]; //no velocity
@@ -300,6 +355,10 @@ var LoopGame = (function() {
         this.fall = function() {
             this.vel = [0, 0];
             this.depth = -Infinity;
+
+            if (window.location.protocol.startsWith('http')) {
+                ga('send', 'event', 'game', 'pocket');
+            }
         };
         this.getDistFrom = function(pt) {
             return Math.sqrt(
@@ -362,6 +421,39 @@ var LoopGame = (function() {
             b.pos = vecSub(b.pos, offsetVec);
             this.move();
             b.move();
+        };
+    }
+
+    function AsyncTrain(chooChoo, getNextDelay) {
+        var self = this;
+        this.timer = null;
+        this.isPaused = false;
+        this.delayFunc = getNextDelay;
+        this.count = 0;
+        this.run = function() {
+            var keepGoing = chooChoo(this.count);
+            this.count++;
+            if (keepGoing) {
+                this.timer = setTimeout(function() {
+                    self.run();
+                }, this.delayFunc());
+            } else {
+                //stop
+            }
+        };
+        this.pause = function() {
+            //pause here
+            this.isPaused = !this.isPaused;
+            if (this.isPaused) { //they're pausing
+                clearTimeout(this.timer);
+            } else { //they're unpausing
+                this.timer = setTimeout(function() {
+                    self.run();
+                }, this.delayFunc());
+            }
+        };
+        this.setDelayFunc = function(func) {
+            this.delayFunc = func;
         };
     }
 

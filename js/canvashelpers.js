@@ -1,6 +1,16 @@
 //Canvas bRUSH - tools for drawing to HTML5 canvases
 //@author Anthony -- https://igliu.com
 var Crush = (function() {
+    //internal helpers
+    function resizeCanvas(canvas, every) {
+        var width = canvas.parentNode.offsetWidth;
+        var height = canvas.parentNode.offsetHeight;
+        canvas.width = width;
+        canvas.height = height;
+
+        every([width, height]);
+    }
+
     return {
         clear: function(ctx, color) {
             ctx.fillStyle = color || 'white';
@@ -104,6 +114,13 @@ var Crush = (function() {
             ctx.lineTo(end[0], end[1]);
             ctx.lineWidth = thickness || 3;
             ctx.stroke();
+        },
+
+        registerDynamicCanvas: function(canvas, every) {
+            resizeCanvas(canvas, every); //initial call
+            window.addEventListener('resize', function() {
+                resizeCanvas(canvas, every);
+            });
         }
     };
 })();

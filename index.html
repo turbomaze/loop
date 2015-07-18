@@ -20,27 +20,38 @@
 
             <div class="container">
                 <div class="grid">
-                    <div class="unit span-grid" id="canvas-container">
-                        <canvas id="canvas"></canvas>
+                    <p class="shard unit two-of-five">
+                        Loop is billiards on an elliptical table. The game
+                        begins with player 1 choosing a color.
+                    </p>
+
+                    <div class="shard unit three-of-five">
+                        <div class="unit one-of-two" id="player1">
+                            *Player 1*
+                        </div>
+                        <div class="unit one-of-two" id="player2">
+                            Player 2
+                        </div>
+                        <a href="#" id="restart-btn" class="btn unit span-grid">
+                            Restart
+                        </a>
                     </div>
 
-                    <p class="unit span-grid">
-                        To fiddle with this game in its current state, click and
-                        drag the cue ball to set its velocity. Watch all of the
-                        balls bounce around!
-                    </p>
+                    <div class="unit span-grid shard" id="canvas-container">
+                        <canvas id="canvas"></canvas>
+                    </div>
                 </div>
             </div>
             <div class="push"></div>
         </div>
 
         <footer>
-            <div class="footer-bar bar-1">
+            <div class="footer-bar" id="bar-1">
                 By <a href="https://igliu.com" target="_blank">Anthony Liu</a>
             </div>
-            <div class="footer-bar bar-2"></div>
-            <div class="footer-bar bar-3"></div>
-            <div class="footer-bar bar-4"></div>
+            <div class="footer-bar" id="bar-2"></div>
+            <div class="footer-bar" id="bar-3"></div>
+            <div class="footer-bar" id="bar-4"></div>
         </footer>
     </body>
 </html>
