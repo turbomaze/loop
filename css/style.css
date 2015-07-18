@@ -80,6 +80,18 @@ footer a {
 }
 
 /* utilities */
+.tiny-unit {
+    display: inline-block;
+    *display: inline;
+    *zoom: 1;
+    vertical-align: top;
+    margin-left: 3%;
+    margin-right: -.25em;
+    /* Clearfix */
+    overflow: hidden;
+    *overflow: visible;
+}
+
 .shard {
     background: #fff;
     border-radius: 3px;
