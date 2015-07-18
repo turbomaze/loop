@@ -1,7 +1,7 @@
 /******************\
 | Loop - Pool Game |
 | @author Anthony  |
-| @version 0.4     |
+| @version 1.0     |
 | @date 2015/07/16 |
 | @edit 2015/07/18 |
 \******************/
@@ -15,7 +15,9 @@ var LoopGame = (function() {
     var BALL_RAD = 7.77;
     var BOARD_COLOR = 'green';
     var BORDER_COLOR = '#AD8334';
-    var BORDER_THICKNESS = 20;
+    var BORDER_THICKNESS = 20; //the "wooden" border size
+    var MAX_ARROW_LEN = 112; //max length of an aiming arrow
+    var VEL_CONST = 1/15; //velocity constant, smaller -> higher max speeds
     var ECCENTRICITY = 0.43;
     var USE_TEXTURES = true;
 
@@ -114,17 +116,19 @@ var LoopGame = (function() {
             initState();
         }, false);
         $s('#orange-option').addEventListener('click', function(e) {
+            e.preventDefault();
             if (playerColors[0] === false) {
                 playerColors = [2, 3]; //2 is orange
                 updateInstructions();
             }
-        });
+        }, false);
         $s('#red-option').addEventListener('click', function(e) {
+            e.preventDefault();
             if (playerColors[0] === false) {
                 playerColors = [3, 2]; //3 is read
                 updateInstructions();
             }
-        });
+        }, false);
         canvas.addEventListener('mousedown', function(e) {
             e.preventDefault();
             if (balls[0].getDistFrom([
@@ -145,10 +149,18 @@ var LoopGame = (function() {
                 currentlyAiming = false;
                 if (playerColors[0] !== false && !moveIsOngoing) {
                     moveIsOngoing = true;
-                    balls[0].vel = [
-                        (currMouseLoc[0] - balls[0].pos[0] - CENTER[0])/50,
-                        (currMouseLoc[1] - balls[0].pos[1] - CENTER[1])/50
+                    var tentNewVel = [
+                        (currMouseLoc[0] - balls[0].pos[0] - CENTER[0]),
+                        (currMouseLoc[1] - balls[0].pos[1] - CENTER[1])
                     ];
+                    if (Math.sqrt(Math.pow(tentNewVel[0], 2)+
+                        Math.pow(tentNewVel[1], 2)) > MAX_ARROW_LEN) {
+                        tentNewVel = scalarTimes(
+                            MAX_ARROW_LEN, normalize(tentNewVel)
+                        );
+                    }
+                    var newVel = scalarTimes(VEL_CONST, tentNewVel);
+                    balls[0].vel = newVel;
 
                     if (window.location.protocol.startsWith('http')) {
                         ga('send', 'event', 'game', 'shoot');
@@ -187,12 +199,12 @@ var LoopGame = (function() {
             showAllColors();
             $s('#'+colors[1]+'-option').style.display = 'none';
         } else if (playerColors[0] === Infinity) { //player 1 wins
-            $s('#command').innerHTML = 'Player 1 wins! Click restart '+
-                'to play again.';
+            $s('#command').innerHTML = '<strong style="color: red">'+
+                'Player 1 wins!</strong> Click restart to play again.';
             hideAllColors();
         } else if (playerColors[1] === Infinity) { //player 2 wins
-            $s('#command').innerHTML = 'Player 2 wins! Click restart '+
-                'to play again.';
+            $s('#command').innerHTML = '<strong style="color: red">'+
+                'Player 2 wins!</strong> Click restart to play again.';
             hideAllColors();
         } else if (madeOpponentsBall === true) {
             $s('#command').innerHTML = '<strong style="color: red">Player '+
@@ -268,10 +280,18 @@ var LoopGame = (function() {
 
         //draw the arrow
         if (currentlyAiming && balls[0].depth !== -Infinity) {
-            Crush.drawArrow(ctx, [
+            var start = [
                 balls[0].pos[0] + CENTER[0],
                 balls[0].pos[1] + CENTER[1]
-            ], currMouseLoc, '#EBEBCC');
+            ];
+            var diff = vecSub(currMouseLoc, start);
+            if (Math.sqrt(Math.pow(diff[0], 2)+
+                Math.pow(diff[1], 2)) > MAX_ARROW_LEN) {
+                diff = scalarTimes(
+                    MAX_ARROW_LEN, normalize(diff)
+                );
+            }
+            Crush.drawArrow(ctx, start, vecAdd(start, diff), '#EBEBCC');
         }
 
         //draw all the balls
