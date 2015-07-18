@@ -1,9 +1,9 @@
 /******************\
 | Loop - Pool Game |
 | @author Anthony  |
-| @version 0.3     |
+| @version 0.4     |
 | @date 2015/07/16 |
-| @edit 2015/07/17 |
+| @edit 2015/07/18 |
 \******************/
 
 var LoopGame = (function() {
