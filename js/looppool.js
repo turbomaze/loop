@@ -11,7 +11,7 @@ var LoopGame = (function() {
 
     /**********
      * config */
-    var DIMS = [720, 405]; //canvas dimensions
+    var DIMS = [752, 423]; //canvas dimensions
     var BALL_RAD = 7.77;
     var BOARD_COLOR = 'green';
     var ECCENTRICITY = 0.43;
@@ -19,7 +19,7 @@ var LoopGame = (function() {
     /*************
      * constants */
     var CENTER = [DIMS[0]/2, DIMS[1]/2]; //canvas center
-    var MIN_AXIS = CENTER[1] - 2; //minor axis of the board
+    var MIN_AXIS = CENTER[1] - 25; //minor axis of the board
     var FOCUS_LEN = MIN_AXIS/Math.sqrt(Math.pow(ECCENTRICITY, -2)-1);
     var MAJ_AXIS = Math.sqrt(MIN_AXIS*MIN_AXIS + FOCUS_LEN*FOCUS_LEN);
     var FOCUS1 = [-FOCUS_LEN, 0];
@@ -36,6 +36,7 @@ var LoopGame = (function() {
     var canvas, ctx;
     var balls;
     var currentlyShooting, mouseDownLoc, currMouseLoc;
+    var woodTexture, clothTexture;
 
     /******************
      * work functions */
@@ -46,6 +47,37 @@ var LoopGame = (function() {
         canvas.height = DIMS[1];
         ctx = canvas.getContext('2d');
 
+        //analytics
+        if (window.location.protocol.startsWith('http')) {
+            (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+            })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+            ga('create', 'UA-47072440-9', 'auto');
+            ga('send', 'pageview');
+        }
+
+        //get the textures
+        var textures = ['wood_texture.png', 'cloth_texture.png'];
+        woodTexture = false;
+        var img0 = document.createElement('img');
+        img0.style.display = 'none';
+        img0.onload = function() {
+            woodTexture = ctx.createPattern(this, 'repeat');
+        };
+        img0.src = 'images/'+textures[0];
+        document.body.appendChild(img0);
+
+        clothTexture = false
+        var img1 = document.createElement('img');
+        img1.style.display = 'none';
+        img1.onload = function() {
+            clothTexture = ctx.createPattern(this, 'repeat');
+        };
+        img1.src = 'images/'+textures[1];
+        document.body.appendChild(img1);
+
+        //initialize the balls
         balls = [
             new BilliardBall([
                 FOCUS1[0] + PHI*FOCUS_LEN,
@@ -60,6 +92,7 @@ var LoopGame = (function() {
             ], '#DF2F3F')
         ];
 
+        //misc variables todo with clicking
         currentlyShooting = false;
         mouseDownLoc = [], currMouseLoc = [];
 
@@ -98,7 +131,7 @@ var LoopGame = (function() {
 
     function render() {
         //draw the table
-        Crush.clear(ctx, '#EFEFEF');
+        Crush.clear(ctx, '#CAE6D1');
         drawLoopTable();
 
         //cursor pointer
@@ -217,7 +250,7 @@ var LoopGame = (function() {
         });
 
         //draw the arrow
-        if (currentlyShooting) {
+        if (currentlyShooting && balls[0].depth !== -Infinity) {
             Crush.drawArrow(ctx, [
                 balls[0].pos[0] + CENTER[0],
                 balls[0].pos[1] + CENTER[1]
@@ -229,9 +262,12 @@ var LoopGame = (function() {
 
     function drawLoopTable() {
         //draw the elliptical shape
+        var thickness = 20;
         Crush.fillEllipse(
             ctx, CENTER, FOCUS_LEN,
-            MAJ_AXIS, 3, BOARD_COLOR
+            MAJ_AXIS+thickness/2, thickness,
+            clothTexture || BOARD_COLOR, 0,
+            woodTexture || '#824805'
         );
 
         //highlight the focus points

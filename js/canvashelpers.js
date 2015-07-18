@@ -27,17 +27,19 @@ var Crush = (function() {
             return ret;
         },
         fillEllipse: function(
-            ctx, center, focusDist, majAxis, thickness, color, dir
+            ctx, center, focusDist, majAxis, thickness, color, dir,
+            strokeStyle
         ) {
             color = color || 'red';
             dir = dir || 0; //0 means x is the long dimension
+            strokeStyle = strokeStyle || color;
 
             var x = center[0];
             var y = center[1];
             var rx = majAxis;
             var ry = Math.sqrt(majAxis*majAxis - focusDist*focusDist);
             ctx.fillStyle = color;
-            ctx.strokeStyle = color;
+            ctx.strokeStyle = strokeStyle;
             ctx.lineWidth = thickness;
             ctx.beginPath();
             if (dir === 0) {
