@@ -12,11 +12,11 @@ var LoopGame = (function() {
     /**********
      * config */
     var DIMS = [752, 423]; //canvas dimensions
-    var BALL_RAD = 7.77;
+    var BALL_RAD_RATIO = 0.0377; //ball radius to major axis ratio
     var BOARD_COLOR = 'green';
     var BORDER_COLOR = '#AD8334';
-    var BORDER_THICKNESS = 20; //the "wooden" border size
-    var MAX_ARROW_LEN = 112; //max length of an aiming arrow
+    var BORDER_THICKNESS_RATIO = 0.1; //the "wooden" border size to maj axis
+    var MAX_ARROW_LEN_RATIO = 0.54; //max len of aiming arrow, % of maj axis
     var VEL_CONST = 1/15; //velocity constant, smaller -> higher max speeds
     var ECCENTRICITY = 0.43;
     var USE_TEXTURES = true;
@@ -43,7 +43,7 @@ var LoopGame = (function() {
     var canvas, ctx;
     var balls, playerColors, turn, advanceTurn, pocketedOppsBall;
     var moveIsOngoing, gameIsOngoing;
-    var currentlyAiming, mouseDownLoc, currMouseLoc;
+    var currentlyAiming, currMouseLoc;
     var woodTexture, clothTexture;
 
     /******************
@@ -63,13 +63,23 @@ var LoopGame = (function() {
             canvas.width = dims[0];
 
             //recalculate all of the ellipse's variables
-            DIMS = dims.slice(0);
-            CENTER = [DIMS[0]/2, DIMS[1]/2]; //canvas center
-            MIN_AXIS = CENTER[1] - 25; //minor axis of the board
+            CENTER = [dims[0]/2, dims[1]/2]; //canvas center
+            MIN_AXIS = CENTER[1]/(1+2*BORDER_THICKNESS_RATIO); //minor axis
             FOCUS_LEN = MIN_AXIS/Math.sqrt(Math.pow(ECCENTRICITY, -2)-1);
             MAJ_AXIS = Math.sqrt(MIN_AXIS*MIN_AXIS + FOCUS_LEN*FOCUS_LEN);
+            if (2*MAJ_AXIS > dims[0] - 50) {
+                MAJ_AXIS = CENTER[0] - 25;
+                FOCUS_LEN = ECCENTRICITY*MAJ_AXIS;
+                MIN_AXIS = Math.sqrt(MAJ_AXIS*MAJ_AXIS - FOCUS_LEN*FOCUS_LEN);
+            }
             FOCUS1 = [-FOCUS_LEN, 0];
             FOCUS2 = [FOCUS_LEN, 0];
+
+            if (typeof balls === 'object') {
+                balls.map(function(ball) {
+                    ball.r = BALL_RAD_RATIO*MAJ_AXIS;
+                });
+            }
         });
 
         //analytics
@@ -109,7 +119,7 @@ var LoopGame = (function() {
 
         //misc variables todo with clicking
         currentlyAiming = false;
-        mouseDownLoc = [], currMouseLoc = [];
+        currMouseLoc = [];
 
         //event listeners
         $s('#restart-btn').addEventListener('click', function(e) {
@@ -130,21 +140,26 @@ var LoopGame = (function() {
                 updateInstructions();
             }
         }, false);
-        canvas.addEventListener('mousedown', function(e) {
+
+        function onMouseDown(e) {
             e.preventDefault();
+            currMouseLoc = getMousePos(e);
             if (balls[0].getDistFrom([
                 currMouseLoc[0] - CENTER[0],
                 currMouseLoc[1] - CENTER[1]
-            ]) < PHI*balls[0].r) {
+            ]) < 2*PHI*balls[0].r) {
                 currentlyAiming = true;
-                mouseDownLoc = getMousePos(e);
             }
-        }, false);
-        canvas.addEventListener('mousemove', function(e) {
+        }
+        canvas.addEventListener('mousedown', onMouseDown, false);
+        canvas.addEventListener('touchstart', onMouseDown, false);
+        function onMouseMove(e) {
             e.preventDefault();
             currMouseLoc = getMousePos(e);
-        }, false);
-        canvas.addEventListener('mouseup', function(e) {
+        }
+        canvas.addEventListener('mousemove', onMouseMove, false);
+        canvas.addEventListener('touchmove', onMouseMove, false);
+        function onMouseUp(e) {
             e.preventDefault();
             if (currentlyAiming) {
                 currentlyAiming = false;
@@ -154,10 +169,11 @@ var LoopGame = (function() {
                         (currMouseLoc[0] - balls[0].pos[0] - CENTER[0]),
                         (currMouseLoc[1] - balls[0].pos[1] - CENTER[1])
                     ];
+                    var maxArrowLen = MAX_ARROW_LEN_RATIO*MAJ_AXIS;
                     if (Math.sqrt(Math.pow(tentNewVel[0], 2)+
-                        Math.pow(tentNewVel[1], 2)) > MAX_ARROW_LEN) {
+                        Math.pow(tentNewVel[1], 2)) > maxArrowLen) {
                         tentNewVel = scalarTimes(
-                            MAX_ARROW_LEN, normalize(tentNewVel)
+                            maxArrowLen, normalize(tentNewVel)
                         );
                     }
                     var newVel = scalarTimes(VEL_CONST, tentNewVel);
@@ -173,10 +189,14 @@ var LoopGame = (function() {
                     '</strong>';
                 }
             }
-        }, false);
-        canvas.addEventListener('mouseout', function(e) {
+        }
+        canvas.addEventListener('mouseup', onMouseUp, false);
+        canvas.addEventListener('touchend', onMouseUp, false);
+        function onMouseOut(e) {
             currentlyAiming = false;
-        });
+        }
+        canvas.addEventListener('mouseout', onMouseOut, false);
+        canvas.addEventListener('touchleave', onMouseOut, false);
 
         //draw the board
         requestAnimationFrame(render);
@@ -223,6 +243,7 @@ var LoopGame = (function() {
     function initState() {
         if (typeof balls === 'object') goCrazy(12, 80);
 
+        var ballRad = BALL_RAD_RATIO*MAJ_AXIS;
         balls = [
             new BilliardBall([
                 FOCUS1[0] + PHI*FOCUS_LEN,
@@ -230,10 +251,10 @@ var LoopGame = (function() {
             ], 0, 'white'),
             new BilliardBall(FOCUS1, 1, 'black'),
             new BilliardBall([
-                FOCUS1[0], FOCUS1[1]-2*BALL_RAD-2
+                FOCUS1[0], FOCUS1[1]-2*ballRad-2
             ], 2, 'orange'),
             new BilliardBall([
-                FOCUS1[0], FOCUS1[1]+2*BALL_RAD+2
+                FOCUS1[0], FOCUS1[1]+2*ballRad+2
             ], 3, '#DF2F3F')
         ];
 
@@ -274,7 +295,7 @@ var LoopGame = (function() {
         if (balls[0].getDistFrom([
             currMouseLoc[0] - CENTER[0],
             currMouseLoc[1] - CENTER[1]
-        ]) < PHI*balls[0].r && balls[0].depth !== -Infinity) {
+        ]) < 2*PHI*balls[0].r && balls[0].depth !== -Infinity) {
             canvas.style.cursor = 'pointer';
         } else {
             canvas.style.cursor = 'inherit';
@@ -287,10 +308,11 @@ var LoopGame = (function() {
                 balls[0].pos[1] + CENTER[1]
             ];
             var diff = vecSub(currMouseLoc, start);
+            var maxArrowLen = MAX_ARROW_LEN_RATIO*MAJ_AXIS;
             if (Math.sqrt(Math.pow(diff[0], 2)+
-                Math.pow(diff[1], 2)) > MAX_ARROW_LEN) {
+                Math.pow(diff[1], 2)) > maxArrowLen) {
                 diff = scalarTimes(
-                    MAX_ARROW_LEN, normalize(diff)
+                    maxArrowLen, normalize(diff)
                 );
             }
             Crush.drawArrow(ctx, start, vecAdd(start, diff), '#EBEBCC');
@@ -302,7 +324,7 @@ var LoopGame = (function() {
 
             Crush.drawPoint(
                 ctx, vecAdd(ball.pos, CENTER),
-                BALL_RAD, ball.color
+                BALL_RAD_RATIO*MAJ_AXIS, ball.color
             );
         });
 
@@ -449,9 +471,10 @@ var LoopGame = (function() {
 
     function drawLoopTable() {
         //draw the elliptical shape
+        var borderThickness = BORDER_THICKNESS_RATIO*MAJ_AXIS;
         Crush.fillEllipse(
             ctx, CENTER, FOCUS_LEN,
-            MAJ_AXIS+BORDER_THICKNESS/2, BORDER_THICKNESS,
+            MAJ_AXIS+borderThickness/2, borderThickness,
             clothTexture || BOARD_COLOR, 0,
             woodTexture || BORDER_COLOR
         );
@@ -459,13 +482,13 @@ var LoopGame = (function() {
         //highlight the focus points
         Crush.drawPoint(ctx, [
             FOCUS1[0]+CENTER[0], FOCUS1[1]+CENTER[1]
-        ], 3, 'cyan');
+        ], BALL_RAD_RATIO*MAJ_AXIS/(PHI*PHI), 'cyan');
         Crush.drawPoint(ctx, [
             FOCUS2[0]+CENTER[0], FOCUS2[1]+CENTER[1]
-        ], BALL_RAD+2*PHI, '#EB1547');
+        ], BALL_RAD_RATIO*MAJ_AXIS*Math.sqrt(2), '#EB1547');
         Crush.drawPoint(ctx, [
             FOCUS2[0]+CENTER[0], FOCUS2[1]+CENTER[1]
-        ], BALL_RAD+PHI, '#730000');
+        ], BALL_RAD_RATIO*MAJ_AXIS*Math.pow(2, 1/4), '#730000');
     }
 
     /***********
@@ -475,7 +498,7 @@ var LoopGame = (function() {
         this.depth = 0;
         this.type = type;
         this.color = color;
-        this.r = BALL_RAD; //don't let this vary, this game isn't that complex
+        this.r = BALL_RAD_RATIO*MAJ_AXIS; //don't let this vary; simple game
         this.vel = [0, 0]; //no velocity
 
         this.move = function() {
@@ -513,10 +536,10 @@ var LoopGame = (function() {
             return Math.sqrt(x*x + y*y) - this.getDistFromCenter();
         };
         this.isHitting = function(b) {
-            return this.getDistFrom(b.pos) < 2*BALL_RAD;
+            return this.getDistFrom(b.pos) < 2*BALL_RAD_RATIO*MAJ_AXIS;
         };
         this.isInPocket = function() {
-            return this.getDistFrom(FOCUS2) < BALL_RAD+2*PHI;
+            return this.getDistFrom(FOCUS2) < BALL_RAD_RATIO*MAJ_AXIS+2*PHI;
         }
         this.collideWith = function(b) {
             //get the velocity in terms of tangential and normal components
@@ -544,7 +567,7 @@ var LoopGame = (function() {
             b.vel = newVel2;
 
             //they collided, so they're overlapping. undo that and move more
-            var overlap = 2*BALL_RAD - Math.sqrt(
+            var overlap = 2*BALL_RAD_RATIO*MAJ_AXIS - Math.sqrt(
                 Math.pow(this.pos[0] - b.pos[0], 2) +
                 Math.pow(this.pos[1] - b.pos[1], 2)
             );
@@ -593,7 +616,14 @@ var LoopGame = (function() {
      * helper functions */
     function getMousePos(e) {
         var rect = canvas.getBoundingClientRect();
-        return [e.clientX-rect.left, e.clientY-rect.top];
+        if (e.type.indexOf('mouse') === 0) { //mouse
+            return [e.clientX-rect.left, e.clientY-rect.top];
+        } else { //touch
+            return [
+                e.changedTouches[0].pageX-rect.left-window.pageXOffset,
+                e.changedTouches[0].pageY-rect.top-window.pageYOffset
+            ];
+        }
     }
     function scalarTimes(s, a) {
         return a.map(function(comp) {
