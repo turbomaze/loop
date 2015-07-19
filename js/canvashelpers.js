@@ -3,6 +3,12 @@
 var Crush = (function() {
     //internal helpers
     function resizeCanvas(canvas, every) {
+        //adjust the parent's height to ensure you can see the whole canvas
+        canvas.parentNode.style.height = Math.min(
+            parseInt(canvas.parentNode.dataset.initHeight),
+            document.documentElement.clientHeight-10
+        ) + 'px';
+
         var width = canvas.parentNode.offsetWidth;
         var height = canvas.parentNode.offsetHeight;
         canvas.width = width;
@@ -125,6 +131,8 @@ var Crush = (function() {
         },
 
         registerDynamicCanvas: function(canvas, every) {
+            canvas.parentNode.dataset.initHeight = canvas
+                .parentNode.style.height;
             resizeCanvas(canvas, every); //initial call
             window.addEventListener('resize', function() {
                 resizeCanvas(canvas, every);
